@@ -10,8 +10,20 @@ NET Library & Support Software
 1. CLI
 
 This is a stream socket client program that is designed to connect to either
-a TCP socket or a UNIX stream socket. After making the program, invoke it by
-typing:
+a TCP socket or a UNIX stream socket. It provides a pretty NCURSES style
+interface to the user and contains useful features like an arbitarily wide
+screen width that can be scrolled laterally, a scrollback feature where text
+that has scrolled off the screen can be viewed by scrolling vertically, and a
+logging feature that saves all sessions to a file and tabulates them by date
+and time.
+
+To make the program, you will need a version of GCC that supports c++23, and
+you will need the NCurses development library. Install this (on a Debian
+machine) by typing the following:
+
+sudo apt-get install libncurses-dev
+
+After making the program, invoke it by typing:
 
 ./cli
 
