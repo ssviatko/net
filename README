@@ -1,0 +1,79 @@
+Stephen Sviatko
+Good Neighbors LLC
+
+The software described in this file is (C) 2022, 2024 by Good Neighbors LLC
+
+******************************
+NET Library & Support Software
+******************************
+
+1. CLI
+
+This is a stream socket client program that is designed to connect to either
+a TCP socket or a UNIX stream socket. After making the program, invoke it by
+typing:
+
+./cli
+
+The program will attempt to connect to the socket you have configured. To
+configure the program, edit the cli.ini file and make sure the following
+categories and fields are present:
+
+[client]
+
+# select: none/tcp/unix
+connection = tcp
+ip = 127.0.0.1
+port = 9734
+unix_socket = manager.sock
+scrollback = 1000
+pad_width = 256
+log = cli.log
+history = 100
+history_is_persistent = true
+history_cache = cli.history
+
+EXPLANATION OF CLI.INI FIELDS:
+
+connection: choose none (program does nothing), tcp, or unix.
+
+ip: If tcp is chosen, this is the IP address you wish to connect to.
+
+port: if tcp is chosen for connection, this is the port to use.
+
+unix_socket: if unix is chosen for connection, this is the UNIX socket
+filename that you wish to connect to. Take note that if the UNIX socket file
+is privileged, you may need to start ./cli with root privileges.
+
+scrollback: length of scrollback in lines. Press F8 to enter scrollback and
+F8 again to leave scrollback. While in scrollback, the arrow keys and page-up/
+page-down control navigation through the scrollback.
+
+pad_width: the width of the terminal does not determine how wide a line of text
+will be. Setting pad_width will allow the screen to be as wide as desired. To
+scroll through the pad, use the scrollback feature and use left and right 
+arrow keys.
+
+log: All sessions are logged to this file.
+
+history: Keeps a history of the last commands entered on the command line.
+
+history_is_persistent: Determines whether the program loads the history cache
+file when started. Otherwise, the history buffer is fresh and empty for each
+new session.
+
+history_cache: The file that contains historic command line entries.
+
+TESTING THE PROGRAM:
+
+In another terminal window, invoke the Netcat program with the following
+switches:
+
+nc -l 0.0.0.0 9734
+
+This will stand up an impromptu TCP listener on the selected port (9734 in this
+case). While Netcat is running, go back to the window where you have built cli
+and start up cli. Now anything you type in cli should show up in the Netcat
+window and vice versa.
+
+
