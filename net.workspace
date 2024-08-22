@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Workspace Name="net" Database="" Version="10000">
   <Project Name="cli" Path="cli.project" Active="Yes"/>
+  <Project Name="mgtsvr" Path="mgtsvr/mgtsvr.project"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug" Selected="yes">
       <Environment/>
       <Project Name="cli" ConfigName="Debug"/>
+      <Project Name="mgtsvr" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release" Selected="yes">
       <Environment/>
       <Project Name="cli" ConfigName="Release"/>
+      <Project Name="mgtsvr" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>
