@@ -139,6 +139,7 @@ bool auth::add_user(const std::string& a_username, const std::string& a_password
 	l_rec.last_login = ss::doubletime(0.0);
 	l_rec.last = ss::doubletime(0.0);
 	l_rec.creation = ss::doubletime();
+	l_rec.priv_level = 0; // standard user
 	std::cout << "add_user: " << l_rec.username << ", pw=" << l_rec.password_hash << std::endl;
 	m_user_records.insert(std::pair<std::string, user_rec>(l_rec.username, l_rec));
 	return true;
@@ -156,6 +157,21 @@ bool auth::delete_user(const std::string& a_username)
 		return false;
 		
 	m_user_records.erase(check_it);
+	return true;
+}
+
+bool auth::set_priv_level(const std::string& a_username, int a_priv_level)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// check if this user already exists, return false if it's not there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+	
+	check_it->second.priv_level = a_priv_level;
 	return true;
 }
 
@@ -244,6 +260,34 @@ std::optional<ss::doubletime> auth::last(const std::string& a_username)
 	return check_it->second.last;
 }
 
+std::optional<ss::doubletime> auth::creation(const std::string& a_username)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return std::nullopt;
+		
+	// check if username exists, bail if not
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return std::nullopt;
+	
+	return check_it->second.creation;
+}
+
+std::optional<int> auth::priv_level(const std::string& a_username)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return std::nullopt;
+		
+	// check if username exists, bail if not
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return std::nullopt;
+	
+	return check_it->second.priv_level;
+}
+
 bool auth::load_authdb(const std::string& a_filename)
 {
 	// this only works in SERVER mode
@@ -291,6 +335,9 @@ bool auth::load_authdb(const std::string& a_filename)
 								if (k.first->content() == "creation") {
 									l_user.creation = ss::doubletime(ss::json::as_number(k.second)->as_float());
 								}
+								if (k.first->content() == "priv_level") {
+									l_user.priv_level = ss::json::as_number(k.second)->as_int();
+								}
 							}
 							m_user_records.insert(std::pair<std::string, user_rec>(l_user.username, l_user));
 						}
@@ -321,7 +368,8 @@ bool auth::save_authdb(const std::string& a_filename)
 		l_work += "\"password_hash\": \"" + value.password_hash + "\", ";
 		l_work += "\"last_login\": " + std::format("{}", double(value.last_login)) + ", ";
 		l_work += "\"last\": " + std::format("{}", double(value.last)) + ", ";
-		l_work += "\"creation\": " + std::format("{}", double(value.creation)) + " ";
+		l_work += "\"creation\": " + std::format("{}", double(value.creation)) + ", ";
+		l_work += "\"priv_level\": " + std::format("{}", value.priv_level) + " ";
 		l_work += "}, ";
 	}
 	// trim final comma

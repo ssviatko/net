@@ -22,6 +22,7 @@ public:
 	ss::doubletime last_login; // last login time
 	ss::doubletime last; // last seen time
 	ss::doubletime creation; // creation date/time
+	int priv_level; // privelege level - lower is better. use 1+..=chumps, 0=normal user, -1=admins, -2...lower for super users
 };
 
 struct challenge_pack {
@@ -62,9 +63,15 @@ public:
 	std::optional<challenge_pack> challenge(const std::string a_username);
 	bool authenticate(const std::string a_username, challenge_pack a_cpack, const std::string& a_response);
 	bool logout(const std::string& a_username);
+	bool set_priv_level(const std::string& a_username, int a_priv_level);
 	std::optional<bool> logged_in(const std::string& a_username);
 	std::optional<ss::doubletime> last_login(const std::string& a_username);
 	std::optional<ss::doubletime> last(const std::string& a_username);
+	std::optional<ss::doubletime> creation(const std::string& a_username);
+	std::optional<int> priv_level(const std::string& a_username);
+	// WARNING: In spite of being in JSON format, auth DB is not user editable!
+	// doing so is not only a violation of security policies, but could also result in a syntactical error in the JSON
+	// file which will result in exceptions or even segfaults when loading.
 	bool load_authdb(const std::string& a_filename);
 	bool save_authdb(const std::string& a_filename);
 	

@@ -17,6 +17,9 @@ int main(int argc, char **argv)
 	// add user to server user database. This is done locally and is not exposed.
 	bool l_add_user_success = l_svr.add_user_plaintext_pw("ssviatko", l_pw);
 	std::cout << std::format("add_user_plaintext_pw: {}", l_add_user_success) << std::endl;
+	// give user root privileges
+	bool l_set_privs = l_svr.set_priv_level("ssviatko", -1);
+	std::cout << std::format("set_priv_level: {}", l_set_privs) << std::endl;
 	
 	// user wants to login, so generate a challenge on the server side.
 	// The session hash is randomly generated and goes over the wire to the client.
