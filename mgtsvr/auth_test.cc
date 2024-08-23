@@ -10,8 +10,11 @@ int main(int argc, char **argv)
 	std::string l_pw = "banana";
 	std::string l_new_pw = "bohica";
 	
-	// add user to server user database. This is done locally and is not exposed.
 	ss::net::auth l_svr(ss::net::auth::role::SERVER);
+	bool l_load_success = l_svr.load_authdb("auth_db.json");
+	std::cout << std::format("load_authdb: {}", l_load_success) << std::endl;
+
+	// add user to server user database. This is done locally and is not exposed.
 	bool l_add_user_success = l_svr.add_user_plaintext_pw("ssviatko", l_pw);
 	std::cout << std::format("add_user_plaintext_pw: {}", l_add_user_success) << std::endl;
 	
@@ -55,12 +58,15 @@ int main(int argc, char **argv)
 	bool l_changeback_pw_success = l_svr.change_pw_plaintext_pw("ssviatko", l_new_pw, l_pw);
 	std::cout << std::format("change_pw back: {}", l_changeback_pw_success) << std::endl;
 	// delete the user
-	bool l_delete_user_success = l_svr.delete_user("ssviatko");
-	std::cout << std::format("delete_user: {}", l_delete_user_success) << std::endl;
+//	bool l_delete_user_success = l_svr.delete_user("ssviatko");
+//	std::cout << std::format("delete_user: {}", l_delete_user_success) << std::endl;
 	
 	// add fresh user (if not already existing) for persistency
 	bool l_persistent_user_success = l_svr.add_user("persist", l_new);
 	std::cout << std::format("add_user: (persistent) {}", l_persistent_user_success) << std::endl;
+	// save
+	bool l_save_success = l_svr.save_authdb("auth_db.json");
+	std::cout << std::format("save_authdb: {}", l_save_success) << std::endl;
 	
 	return 0;
 }

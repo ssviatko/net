@@ -38,5 +38,7 @@ clean:
 	rm -f *.o
 	rm -f *~
 	rm -f $(AUTH_TARGET)
+	rm -f $(PWGEN_TARGET)
+	
 	
 	

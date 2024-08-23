@@ -138,6 +138,7 @@ bool auth::add_user(const std::string& a_username, const std::string& a_password
 	l_rec.password_hash = a_password_hash;
 	l_rec.last_login = ss::doubletime(0.0);
 	l_rec.last = ss::doubletime(0.0);
+	l_rec.creation = ss::doubletime();
 	std::cout << "add_user: " << l_rec.username << ", pw=" << l_rec.password_hash << std::endl;
 	m_user_records.insert(std::pair<std::string, user_rec>(l_rec.username, l_rec));
 	return true;
@@ -242,7 +243,97 @@ std::optional<ss::doubletime> auth::last(const std::string& a_username)
 	
 	return check_it->second.last;
 }
+
+bool auth::load_authdb(const std::string& a_filename)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
 	
+	// file exists?
+	if (!std::filesystem::exists(a_filename))
+		return false;
+		
+	ss::data l_load;
+	l_load.load_file(a_filename.c_str());
+	std::string l_work = l_load.read_std_str(l_load.size());
+		
+	std::shared_ptr<ss::json::master> l_master = ss::json::parse_json(l_work);
+	if (l_master->type() == ss::json::element_type::OBJECT) {
+		m_user_records.clear();
+		std::shared_ptr<ss::json::object> l_root_object = l_master->as_object();
+		for (const auto& i : l_root_object->stringvalues) {
+			if (i.first->content() == "auth_db") {
+//				std::cout << "found auth_db" << std::endl;
+				if (i.second->type() == ss::json::element_type::ARRAY) {
+					std::shared_ptr<ss::json::array> l_user_array = ss::json::as_array(i.second);
+					for (const auto& j : l_user_array->values) {
+						if (j->type() == ss::json::element_type::OBJECT) {
+							std::shared_ptr<ss::json::object> jj = ss::json::as_object(j);
+							user_rec l_user;
+							for (const auto& k : jj->stringvalues) {
+								if (k.first->content() == "username") {
+//									std::cout << "found username: " << k.second->content() << std::endl;
+									l_user.username = k.second->content();
+								}
+								if (k.first->content() == "password_hash") {
+//									std::cout << "found password_hash: " << k.second->content() << std::endl;
+									l_user.password_hash = k.second->content();
+								}
+								if (k.first->content() == "last_login") {
+//									std::cout << "found last_login: " << ss::json::as_number(k.second)->as_float() << std::endl;
+									l_user.last_login = ss::doubletime(ss::json::as_number(k.second)->as_float());
+								}
+								if (k.first->content() == "last") {
+//									std::cout << "found last: " << ss::json::as_number(k.second)->as_float() << std::endl;
+									l_user.last = ss::doubletime(ss::json::as_number(k.second)->as_float());
+								}
+								if (k.first->content() == "creation") {
+									l_user.creation = ss::doubletime(ss::json::as_number(k.second)->as_float());
+								}
+							}
+							m_user_records.insert(std::pair<std::string, user_rec>(l_user.username, l_user));
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+bool auth::save_authdb(const std::string& a_filename)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// if DB is empty, do nothing
+	if (m_user_records.size() == 0)
+		return false;
+
+	std::string l_work;
+	l_work += "{ \"auth_db\": [ ";
+	for (const auto& [key, value] : m_user_records) {
+		l_work += "{ ";
+		l_work += "\"username\": \"" + value.username + "\", ";
+		l_work += "\"password_hash\": \"" + value.password_hash + "\", ";
+		l_work += "\"last_login\": " + std::format("{}", double(value.last_login)) + ", ";
+		l_work += "\"last\": " + std::format("{}", double(value.last)) + ", ";
+		l_work += "\"creation\": " + std::format("{}", double(value.creation)) + " ";
+		l_work += "}, ";
+	}
+	// trim final comma
+	std::string::iterator l_it = l_work.end() - 2;
+	l_work.erase(l_it, l_work.end());
+	l_work += " ] }";
+//	std::cout << "save_authdb: " << ss::json::make_human_readable(l_work) << std::endl;
+	ss::data l_save;
+	l_save.write_std_str(ss::json::make_human_readable(l_work));
+	l_save.save_file(a_filename.c_str());
+	return true;
+}
 
 } // namespace net
 } // namespace ss

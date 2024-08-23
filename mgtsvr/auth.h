@@ -4,9 +4,12 @@
 #include <string>
 #include <map>
 #include <optional>
+#include <memory>
+#include <filesystem>
 
 #include "data.h"
 #include "doubletime.h"
+#include "json.h"
 
 namespace ss {
 namespace net {
@@ -18,6 +21,7 @@ public:
 	bool logged_in; // not persistent
 	ss::doubletime last_login; // last login time
 	ss::doubletime last; // last seen time
+	ss::doubletime creation; // creation date/time
 };
 
 struct challenge_pack {
@@ -61,6 +65,8 @@ public:
 	std::optional<bool> logged_in(const std::string& a_username);
 	std::optional<ss::doubletime> last_login(const std::string& a_username);
 	std::optional<ss::doubletime> last(const std::string& a_username);
+	bool load_authdb(const std::string& a_filename);
+	bool save_authdb(const std::string& a_filename);
 	
 protected:
 	role m_role;
