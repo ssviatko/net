@@ -74,7 +74,55 @@ std::optional<std::string> auth::challenge_response(const std::string& a_session
 	return l_ret;
 }
 
-bool auth::add_user(const std::string& a_username, const std::string& a_password)
+bool auth::change_pw_plaintext_pw(const std::string& a_username, const std::string& a_old_pw, const std::string& a_new_pw)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// check if this user already exists, return false if it's not there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+	
+	return change_pw(a_username, generate_hash(a_old_pw), generate_hash(a_new_pw));
+}
+
+bool auth::change_pw(const std::string& a_username, const std::string& a_old_pw_hash, const std::string& a_new_pw_hash)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// check if this user already exists, return false if it's not there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+	
+	if (check_it->second.password_hash == a_old_pw_hash) {
+		check_it->second.password_hash = a_new_pw_hash;
+		std::cout << "auth::change_pw: u=" << a_username << " old=" << a_old_pw_hash << " new=" << a_new_pw_hash << std::endl;
+		return true;
+	}
+	return false;
+}
+
+bool auth::add_user_plaintext_pw(const std::string& a_username, const std::string& a_password)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// check if this user already exists, return false if it's already there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it != m_user_records.end())
+		return false;
+	
+	std::string l_pw_hash = generate_hash(a_password);
+	return add_user(a_username, l_pw_hash);
+}
+
+bool auth::add_user(const std::string& a_username, const std::string& a_password_hash)
 {
 	// this only works in SERVER mode
 	if (m_role != role::SERVER)
@@ -87,9 +135,26 @@ bool auth::add_user(const std::string& a_username, const std::string& a_password
 		
 	user_rec l_rec;
 	l_rec.username = a_username;
-	l_rec.password_hash = generate_hash(a_password);
+	l_rec.password_hash = a_password_hash;
+	l_rec.last_login = ss::doubletime(0.0);
+	l_rec.last = ss::doubletime(0.0);
 	std::cout << "add_user: " << l_rec.username << ", pw=" << l_rec.password_hash << std::endl;
 	m_user_records.insert(std::pair<std::string, user_rec>(l_rec.username, l_rec));
+	return true;
+}
+
+bool auth::delete_user(const std::string& a_username)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// check if this user already exists, return false if it's not there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+		
+	m_user_records.erase(check_it);
 	return true;
 }
 
@@ -135,6 +200,49 @@ bool auth::logout(const std::string& a_username)
 	check_it->second.last = ss::doubletime();
 	return true;
 }
+
+std::optional<bool> auth::logged_in(const std::string& a_username)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return std::nullopt;
+		
+	// check if username exists, bail if not
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return std::nullopt;
+	
+	return check_it->second.logged_in;
+}
+
+std::optional<ss::doubletime> auth::last_login(const std::string& a_username)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return std::nullopt;
+		
+	// check if username exists, bail if not
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return std::nullopt;
+	
+	return check_it->second.last_login;
+}
+
+std::optional<ss::doubletime> auth::last(const std::string& a_username)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return std::nullopt;
+		
+	// check if username exists, bail if not
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return std::nullopt;
+	
+	return check_it->second.last;
+}
+	
 
 } // namespace net
 } // namespace ss

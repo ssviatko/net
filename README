@@ -88,4 +88,15 @@ case). While Netcat is running, go back to the window where you have built cli
 and start up cli. Now anything you type in cli should show up in the Netcat
 window and vice versa.
 
+2. AUTH
+
+Auth is a class that provides authentication services over a network connection.
+It works by generating a hash of the user's password and saving it in a local
+database. When a user wants to log in, a randon session hash is generated and
+is hashed together with the user's password hash to make an expected response
+hash. Then the session hash is sent over the wire to the client where the
+client preforms the same operation, hashing the user's password and then hashin
+that hash against the session hash it was sent. It sends this response hash
+back over the wire to the server and the server compares it against what it
+calculated, and if the hashes match, then the user is logged in.
 

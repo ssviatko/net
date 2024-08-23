@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Project Name="mgtsvr" Version="11000" InternalType="">
   <VirtualDirectory Name="mgtsvr">
+    <File Name="pwgen.cc"/>
     <File Name="auth.cc"/>
     <File Name="auth.h"/>
     <File Name="auth_test.cc"/>

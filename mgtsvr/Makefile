@@ -13,14 +13,20 @@ LDFLAGS = -Wl,-rpath,../libss2x -Wl,-rpath=/usr/local/lib64 -L../libss2x -lpthre
 
 AUTH_OBJS = auth.o auth_test.o
 AUTH_TARGET = auth_test
+PWGEN_OBJS = auth.o pwgen.o
+PWGEN_TARGET = pwgen
 
-all: $(AUTH_TARGET)
+all: $(AUTH_TARGET) $(PWGEN_TARGET)
 
 $(AUTH_TARGET): $(AUTH_OBJS)
 
 	@if ! test -f $(BUILD_NUMBER_FILE); then echo 0 > $(BUILD_NUMBER_FILE); fi
 	@echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)) > $(BUILD_NUMBER_FILE)
 	$(LD) $(AUTH_OBJS) -o $(AUTH_TARGET) $(LDFLAGS)
+
+$(PWGEN_TARGET): $(PWGEN_OBJS)
+
+	$(LD) $(PWGEN_OBJS) -o $(PWGEN_TARGET) $(LDFLAGS)
 	
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
