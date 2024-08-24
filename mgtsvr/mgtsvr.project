@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Project Name="mgtsvr" Version="11000" InternalType="">
   <VirtualDirectory Name="mgtsvr">
+    <File Name="command_server.cc"/>
+    <File Name="command_server.h"/>
+    <File Name="svr_test.cc"/>
+    <File Name="server_base.cc"/>
+    <File Name="server_base.h"/>
     <File Name="pwgen.cc"/>
     <File Name="auth.cc"/>
     <File Name="auth.h"/>

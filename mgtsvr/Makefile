@@ -15,8 +15,10 @@ AUTH_OBJS = auth.o auth_test.o
 AUTH_TARGET = auth_test
 PWGEN_OBJS = auth.o pwgen.o
 PWGEN_TARGET = pwgen
+SVR_TEST_OBJS = auth.o server_base.o command_server.o svr_test.o
+SVR_TEST_TARGET = svr_test
 
-all: $(AUTH_TARGET) $(PWGEN_TARGET)
+all: $(AUTH_TARGET) $(PWGEN_TARGET) $(SVR_TEST_TARGET)
 
 $(AUTH_TARGET): $(AUTH_OBJS)
 
@@ -27,6 +29,10 @@ $(AUTH_TARGET): $(AUTH_OBJS)
 $(PWGEN_TARGET): $(PWGEN_OBJS)
 
 	$(LD) $(PWGEN_OBJS) -o $(PWGEN_TARGET) $(LDFLAGS)
+	
+$(SVR_TEST_TARGET): $(SVR_TEST_OBJS)
+
+	$(LD) $(SVR_TEST_OBJS) -o $(SVR_TEST_TARGET) $(LDFLAGS)
 	
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
@@ -39,6 +45,7 @@ clean:
 	rm -f *~
 	rm -f $(AUTH_TARGET)
 	rm -f $(PWGEN_TARGET)
+	rm -f $(SVR_TEST_TARGET)
 	
 	
 	
