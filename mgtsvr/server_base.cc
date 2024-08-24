@@ -14,5 +14,10 @@ server_base::~server_base()
 	
 }
 
+void server_base::shutdown()
+{
+	ctx.log("Shutting down server_base subsystem..");
+}
+
 } // namespace net
 } // namespace ss

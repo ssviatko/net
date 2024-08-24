@@ -15,7 +15,7 @@ AUTH_OBJS = auth.o auth_test.o
 AUTH_TARGET = auth_test
 PWGEN_OBJS = auth.o pwgen.o
 PWGEN_TARGET = pwgen
-SVR_TEST_OBJS = auth.o server_base.o command_server.o svr_test.o
+SVR_TEST_OBJS = auth.o server_base.o command_server.o fortune_server.o svr_test.o
 SVR_TEST_TARGET = svr_test
 
 all: $(AUTH_TARGET) $(PWGEN_TARGET) $(SVR_TEST_TARGET)
