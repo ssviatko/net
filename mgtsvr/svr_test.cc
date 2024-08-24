@@ -9,6 +9,7 @@
 int main(int argc, char **argv)
 {
 	ss::failure_services& l_fs = ss::failure_services::get();
+	l_fs.install_signal_handler();
 	ss::log::ctx& ctx = ss::log::ctx::get();
 	ctx.register_thread("main");
 	std::shared_ptr<ss::log::target_stdout> l_stdout =
@@ -30,7 +31,6 @@ int main(int argc, char **argv)
 		exit(EXIT_SUCCESS);
 	};
 	
-	l_fs.install_signal_handler();
 	l_fs.install_sigint_handler(ctrlc);
 	
 	while (1)

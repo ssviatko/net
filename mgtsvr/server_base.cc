@@ -5,6 +5,7 @@ namespace net {
 
 server_base::server_base(const std::string& a_category)
 : ss::net::auth(ss::net::auth::role::SERVER)
+, ss::ccl::dispatchable(a_category + "_basedisp")
 , m_category(a_category)
 {
 	ss::icr& l_icr = ss::icr::get();
@@ -33,7 +34,13 @@ server_base::server_base(const std::string& a_category)
 		ctx.log_p(ss::log::NOTICE, "one or both of the available listening methods must be enabled, exiting!");
 		throw std::runtime_error("server_base: one or both of the available listening methods must be enabled, exiting!");
 	}
-
+	
+	// init epoll
+	if ((m_epollfd = epoll_create1(EPOLL_CLOEXEC)) == -1) {
+		ctx.log_p(ss::log::NOTICE, "unable to initialize epoll, exiting!");
+		throw std::runtime_error("server_base: unable to initialize epoll, exiting!");
+	}
+	start();
 }
 
 server_base::~server_base()
@@ -44,6 +51,15 @@ server_base::~server_base()
 void server_base::shutdown()
 {
 	ctx.log("Shutting down server_base subsystem..");
+	halt();
+	close(m_epollfd);
+}
+
+bool server_base::dispatch()
+{
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	ctx.log("server_base::dispatch: doing nothing and loving it");
+	return true;
 }
 
 } // namespace net
