@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Project Name="mgtsvr" Version="11000" InternalType="">
   <VirtualDirectory Name="mgtsvr">
+    <File Name="fortune.ini"/>
     <File Name="fortune_server.h"/>
     <File Name="fortune_server.cc"/>
     <File Name="command_server.cc"/>

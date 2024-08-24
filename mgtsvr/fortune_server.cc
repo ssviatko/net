@@ -4,6 +4,7 @@ namespace ss {
 namespace net {
 
 fortune_server::fortune_server()
+: ss::net::command_server("fortune_server", "fortune_auth_db")
 {
 	
 }

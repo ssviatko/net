@@ -58,7 +58,7 @@ std::optional<challenge_pack> auth::challenge(const std::string a_username)
 	l_ret.username = a_username;
 	l_ret.session = generate_session();
 	l_ret.expected_response = generate_challenge(l_ret.session, check_it->second.password_hash);
-	std::cout << "auth::challenge u=" << a_username << " sess=" << l_ret.session << " er=" << l_ret.expected_response << std::endl;
+//	std::cout << "auth::challenge u=" << a_username << " sess=" << l_ret.session << " er=" << l_ret.expected_response << std::endl;
 	return l_ret;
 }
 
@@ -70,7 +70,7 @@ std::optional<std::string> auth::challenge_response(const std::string& a_session
 	
 	std::string l_pw_hash = generate_hash(a_password);
 	std::string l_ret = generate_challenge(a_session, l_pw_hash);
-	std::cout << "auth::challenge response sess=" << a_session << " pwhash=" << l_pw_hash << " resp=" << l_ret << std::endl;
+//	std::cout << "auth::challenge response sess=" << a_session << " pwhash=" << l_pw_hash << " resp=" << l_ret << std::endl;
 	return l_ret;
 }
 
@@ -101,7 +101,7 @@ bool auth::change_pw(const std::string& a_username, const std::string& a_old_pw_
 	
 	if (check_it->second.password_hash == a_old_pw_hash) {
 		check_it->second.password_hash = a_new_pw_hash;
-		std::cout << "auth::change_pw: u=" << a_username << " old=" << a_old_pw_hash << " new=" << a_new_pw_hash << std::endl;
+//		std::cout << "auth::change_pw: u=" << a_username << " old=" << a_old_pw_hash << " new=" << a_new_pw_hash << std::endl;
 		return true;
 	}
 	return false;
@@ -140,7 +140,7 @@ bool auth::add_user(const std::string& a_username, const std::string& a_password
 	l_rec.last = ss::doubletime(0.0);
 	l_rec.creation = ss::doubletime();
 	l_rec.priv_level = 0; // standard user
-	std::cout << "add_user: " << l_rec.username << ", pw=" << l_rec.password_hash << std::endl;
+//	std::cout << "add_user: " << l_rec.username << ", pw=" << l_rec.password_hash << std::endl;
 	m_user_records.insert(std::pair<std::string, user_rec>(l_rec.username, l_rec));
 	return true;
 }
