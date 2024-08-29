@@ -2,6 +2,7 @@
 #define BF_H
 
 #include <cstdint>
+#include <cstring>
 
 #include <arpa/inet.h>
 
@@ -35,13 +36,19 @@ class block {
 
 public:
 	block(const std::uint8_t *a_buffer, std::uint8_t *a_key, std::size_t a_key_len);
-	const uint8_t *get_blockdata() const { return (const uint8_t *)m_block.inb; }
+	void set_blockdata(const std::uint8_t *a_buffer);
+	const std::uint8_t *get_blockdata() const { return (const std::uint8_t *)m_block.inb; }
+	void set_iv(const std::uint8_t *a_iv);
 
 	void encrypt();
 	void decrypt();
 
+	void encrypt_with_cbc();
+	void decrypt_with_cbc();
+
 protected:
 	block_t m_block;
+	std::uint8_t m_iv[8];
 };
 	
 }; // namespace ss::bf

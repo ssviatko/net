@@ -30,6 +30,8 @@
 #include "md5.h"
 #include "sha1.h"
 #include "sha2.h"
+#include "hmac.h"
+#include "aes.h"
 
 namespace ss {
 
@@ -163,7 +165,7 @@ public:
 	void clear();
 	void truncate_back(std::size_t a_new_len);
 	void truncate_front(std::size_t a_trunc_len);
-	void assign(std::uint8_t *a_buffer, std::size_t a_len);
+	void assign(const std::uint8_t *a_buffer, std::size_t a_len);
 	std::uint8_t *buffer() { return m_buffer.data(); }
 	bool compare(const data& a_data) const; // true = same, false = different
 	void append_data(const data& a_data);
@@ -279,8 +281,39 @@ public:
 	
 	static data bf_key_random();
 	static data bf_key_schedule(const std::string& a_string);
+	static data bf_iv_random();
+	static data bf_iv_schedule(const std::string& a_string);
 	static data bf_block_encrypt(data& a_block, data& a_key);
 	static data bf_block_decrypt(data& a_block, data& a_key);
+	static data bf_encrypt_with_cbc(data& a_data, data& a_key, data& a_iv); // raw encryption/decryption to satisfy test vectors
+	static data bf_decrypt_with_cbc(data& a_data, data& a_key, data& a_iv);
+	static data encrypt_bf_cbc_hmac_sha2_256(data& a_data, data& a_key, data& a_iv); // use these for encrypting production data
+	static data decrypt_bf_cbc_hmac_sha2_256(data& a_data, data& a_key, data& a_iv);
+	
+	static data bf7_key_random();
+	static data bf7_key_schedule(const std::string& a_string);
+	static data bf7_iv_random();
+	static data bf7_iv_schedule(const std::string& a_string);
+	static data bf7_block_encrypt(data& a_block, data& a_key);
+	static data bf7_block_decrypt(data& a_block, data& a_key);
+	static data bf7_encrypt_with_cbc(data& a_data, data& a_key, data& a_iv);
+	static data bf7_decrypt_with_cbc(data& a_data, data& a_key, data& a_iv);
+	static data encrypt_bf7_cbc_hmac_sha2_256(data& a_data, data& a_key, data& a_iv);
+	static data decrypt_bf7_cbc_hmac_sha2_256(data& a_data, data& a_key, data& a_iv);
+	
+	static std::string encode_little_secret(const std::string& a_passphrase, const std::string& a_message);
+	static std::string decode_little_secret(const std::string& a_passphrase, const std::string& a_message);
+
+	static data aes256_key_random();
+	static data aes256_key_schedule(const std::string& a_string);
+	static data aes256_iv_random();
+	static data aes256_iv_schedule(const std::string& a_string);
+	static data aes256_block_encrypt(data& a_block, data& a_key);
+	static data aes256_block_decrypt(data& a_block, data& a_key);
+	static data aes256_encrypt_with_cbc(data& a_data, data& a_key, data& a_iv);
+	static data aes256_decrypt_with_cbc(data& a_data, data& a_key, data& a_iv);
+	static data encrypt_aes256_cbc_hmac_sha2_256(data& a_data, data& a_key, data& a_iv);
+	static data decrypt_aes256_cbc_hmac_sha2_256(data& a_data, data& a_key, data& a_iv);
 	
 	/* compression */
 	
