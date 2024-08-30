@@ -39,6 +39,7 @@ public:
 	static failure_services& get();
 	void install_signal_handler();
 	void install_sigint_handler(std::function<void(void)> a_handler);
+	void install_sighup_handler(std::function<void(void)> a_handler);
 	void invoke_sigint_handler();
 	void temporarily_ignore_signals();
 	void unignore_signals();
@@ -50,6 +51,8 @@ protected:
 	// SIGINT stuff
 	static bool sigint_handler_installed;
 	static std::function<void(void)> sigint_handler;
+	static bool sighup_handler_installed;
+	static std::function<void(void)> sighup_handler;
 };
 
 } // namespace ss
