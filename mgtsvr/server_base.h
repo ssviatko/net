@@ -33,7 +33,9 @@
 namespace ss {
 namespace net {
 
-class server_base : public ss::net::auth, public ss::ccl::dispatchable {
+class server_base
+: public ss::net::auth
+, public ss::ccl::dispatchable {
 public:
 	server_base(const std::string& a_category);
 	~server_base();
@@ -41,13 +43,16 @@ public:
 	virtual bool dispatch();
 	void setup_server();
 	void setup_server_un();
+	virtual void newly_accepted_client(int client_sockfd) = 0;
 	virtual void data_from_client(int client_sockfd) = 0;
 	
 	const static std::uint32_t DRAIN_BUFFER_SIZE = 16384;
+	const static std::uint32_t WRITE_CHUNK_SIZE = 4096;
 	
 protected:
 	enum auth_state {
 		AUTH_STATE_NOAUTH,
+		AUTH_STATE_AWAIT_USERNAME,
 		AUTH_STATE_AWAIT_CHAL,
 		AUTH_STATE_LOGGED_ON
 	};
@@ -68,6 +73,8 @@ protected:
 	ss::doubletime m_uptime;
 	
 	// server functions
+	void set_epollout_for_fd(int a_fd);
+	void flushout(int client_sockfd);
 	void serve();
 	void drain_socket(int client_sockfd);
 	int accept_client(int a_server_fd);

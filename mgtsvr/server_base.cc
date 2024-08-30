@@ -93,6 +93,7 @@ bool server_base::dispatch()
 				} else {
 					// client accepted successfully
 //					ctx.log_p(ss::log::INFO, std::format("accepted client at: {} on fd {}", ss::doubletime::now_as_iso8601_ms(), l_client));
+					newly_accepted_client(l_client);
 				}
 			} else {
 				// EPOLLIN on a client socket
@@ -108,13 +109,57 @@ bool server_base::dispatch()
 			remove_client(client_sockfd);
 		} else if (events[n].events & EPOLLOUT) {
 			// EPOLLOUT on a client socket
-//			flushout(events[n].data.fd);
+			flushout(events[n].data.fd);
 		}
 	}
 	if (l_did_input)
 		serve();
 
 	return true;
+}
+
+void server_base::flushout(int client_sockfd)
+{
+	std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
+	// find our client record
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	int l_datalen = l_client_list_it->second.m_out_circbuff.size();
+	// write in chunks
+	int l_towrite = (l_datalen >(int)WRITE_CHUNK_SIZE) ? WRITE_CHUNK_SIZE : l_datalen;
+	int l_ret = write(client_sockfd, l_client_list_it->second.m_out_circbuff.buffer(), l_towrite);
+	if (l_ret < 0) {
+		// error
+		ctx.log_p(ss::log::WARNING, std::format("possible error writing to fd: {} - {}", client_sockfd, strerror(errno)));
+		return;
+	} else if (l_ret == 0) {
+		// EOF
+		ctx.log(std::format("possible EOF writing to fd: {}", client_sockfd));
+		return;
+	} else if (l_ret < l_towrite) {
+		// partial write... (why?)
+		ctx.log(std::format("wrote {} bytes to fd: {}, expected to write {}", l_ret, client_sockfd, l_towrite));
+	} else if (l_ret == l_towrite) {
+		// all bytes written
+	}
+
+	l_client_list_it->second.m_out_circbuff.truncate_front(l_ret);
+
+	if (l_client_list_it->second.m_out_circbuff.size() == 0) {
+		// we emptied it, so clear EPOLLOUT flag for fd
+//		log << ulog::debug << "dispatch: clearing EPOLLOUT for fd:" << client_sockfd << std::endl;
+		struct epoll_event l_client_info;
+		l_client_info.events = EPOLLIN | EPOLLHUP;
+		l_client_info.data.fd = client_sockfd;
+		epoll_ctl(m_epollfd, EPOLL_CTL_MOD, client_sockfd, &l_client_info);
+	}
+}
+
+void server_base::set_epollout_for_fd(int a_fd)
+{
+	struct epoll_event l_client_info;
+	l_client_info.events = EPOLLIN | EPOLLHUP | EPOLLOUT;
+	l_client_info.data.fd = a_fd;
+	epoll_ctl(m_epollfd, EPOLL_CTL_MOD, a_fd, &l_client_info);
 }
 
 void server_base::serve()

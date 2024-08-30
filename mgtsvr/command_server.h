@@ -24,6 +24,7 @@ public:
 	command_server(const std::string& a_category, const std::string& a_auth_db);
 	~command_server();
 	virtual void shutdown();
+	virtual void newly_accepted_client(int client_sockfd);
 	virtual void data_from_client(int client_sockfd);
 	
 protected:
@@ -31,6 +32,8 @@ protected:
 	bool m_banner; // should we print the banner when a user logs on?
 	std::string m_auth_db_filename;
 	ss::ccl::work_queue<command_work_item> m_queue;
+	// command server functions
+	void send_to_client(int client_sockfd, const std::string& a_string);
 };
 
 } // namespace net

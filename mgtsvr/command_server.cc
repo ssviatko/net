@@ -29,6 +29,24 @@ void command_server::shutdown()
 	server_base::shutdown();
 }
 
+void command_server::newly_accepted_client(int client_sockfd)
+{
+//	ctx.log(std::format("newly_accepted_client: {}", client_sockfd));
+	std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	// send "username:" string
+	send_to_client(client_sockfd, "username: ");
+	l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_AWAIT_USERNAME;
+}
+
+void command_server::send_to_client(int client_sockfd, const std::string& a_string)
+{
+	// assumes m_client_list_mtx is locked
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	l_client_list_it->second.m_out_circbuff.write_std_str_delim(a_string);
+	set_epollout_for_fd(client_sockfd);
+}
+
 void command_server::data_from_client(int client_sockfd)
 {
 	// we are called when a client sockfd has actionable data waiting. Our job is to grab
