@@ -38,6 +38,23 @@ public:
 	void setup_server_un();
 	
 protected:
+	enum auth_state {
+		AUTH_STATE_NOAUTH,
+		AUTH_STATE_AWAIT_CHAL,
+		AUTH_STATE_LOGGED_ON
+	};
+	
+	struct client_rec {
+		auth_state m_auth_state;
+		std::string m_auth_username;
+		sa_family_t m_family;
+		struct sockaddr_in m_sockaddr_in;
+		struct sockaddr_un m_sockaddr_un;
+		ss::doubletime m_connect_time;
+		ss::data m_in_circbuff;
+		ss::data m_out_circbuff;
+	};
+
 	ss::log::ctx& ctx = ss::log::ctx::get();
 	std::string m_category;
 	ss::doubletime m_uptime;
