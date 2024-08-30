@@ -8,6 +8,7 @@ server_base::server_base(const std::string& a_category)
 , ss::ccl::dispatchable(a_category + "_basedisp")
 , m_category(a_category)
 {
+	ctx.log("server_base starting up..");
 	ss::icr& l_icr = ss::icr::get();
 
 	if (!l_icr.key_is_defined(m_category, "port")) {
@@ -45,7 +46,7 @@ server_base::server_base(const std::string& a_category)
 	// init the server
 	if (l_enable_tcp) {
 		ctx.log_p(ss::log::INFO, "starting TCP server..");
-		setup_server();
+		setup_server_tcp();
 	}
 	
 	if (l_enable_unix) {
@@ -282,28 +283,28 @@ std::string server_base::un_str(const struct sockaddr_un *a_addr)
 	return "UNIX socket connection";
 }
 
-void server_base::setup_server()
+void server_base::setup_server_tcp()
 {
 	int listen_port;
 	int backlog = 5;
 
 	ss::icr& l_icr = ss::icr::get();
 	listen_port = l_icr.to_integer(l_icr.keyvalue(m_category, "port"));
-	ctx.log(std::format("setup_server: setting port to {}", listen_port));
+	ctx.log(std::format("setup_server_tcp: setting port to {}", listen_port));
 
 	// remove any old sockets and create an unnamed socket for the server
 	m_server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_server_sockfd == -1) {
-		ctx.log_p(ss::log::ERR, "setup_server: socket() call failed, exiting!");
-		throw std::runtime_error("setup_server: socket() call failed, exiting!");
+		ctx.log_p(ss::log::ERR, "setup_server_tcp: socket() call failed, exiting!");
+		throw std::runtime_error("setup_server_tcp: socket() call failed, exiting!");
 	}
 
 	// make server socket nonblocking
 	int server_sockfd_flags = fcntl(m_server_sockfd, F_GETFL);
 	server_sockfd_flags |= O_NONBLOCK;
 	if (fcntl(m_server_sockfd, F_SETFL, server_sockfd_flags) == -1) {
-		ctx.log_p(ss::log::ERR, "setup_server: unable to set server_sockfd flags, exiting!");
-		throw std::runtime_error("setup_server: unable to set server_sockfd flags, exiting!");
+		ctx.log_p(ss::log::ERR, "setup_server_tcp: unable to set server_sockfd flags, exiting!");
+		throw std::runtime_error("setup_server_tcp: unable to set server_sockfd flags, exiting!");
 	}
 
 	// add server socket to epoll
@@ -311,8 +312,8 @@ void server_base::setup_server()
 	ev.events = EPOLLIN | EPOLLRDHUP;
 	ev.data.fd = m_server_sockfd;
 	if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, m_server_sockfd, &ev) == -1) {
-		ctx.log_p(ss::log::ERR, std::format("setup_server: unable to add server socket to epoll, errno = {} ({}), exiting!", errno, strerror(errno)));
-		throw std::runtime_error("setup_server: unable to add server socket to epoll, exiting!");
+		ctx.log_p(ss::log::ERR, std::format("setup_server_tcp: unable to add server socket to epoll, errno = {} ({}), exiting!", errno, strerror(errno)));
+		throw std::runtime_error("setup_server_tcp: unable to add server socket to epoll, exiting!");
 	}
 
 	// name the socket
@@ -323,24 +324,24 @@ void server_base::setup_server()
 	int reuse = 1;
 
 	if (setsockopt(m_server_sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse)) < 0) {
-		ctx.log_p(ss::log::ERR, "setup_server: setsockopt SO_REUSEADDR returned error, exiting!");
+		ctx.log_p(ss::log::ERR, "setup_server_tcp: setsockopt SO_REUSEADDR returned error, exiting!");
 		close(m_server_sockfd);
-		throw std::runtime_error("setup_server: setsockopt SO_REUSEADDR returned error, exiting!");
+		throw std::runtime_error("setup_server_tcp: setsockopt SO_REUSEADDR returned error, exiting!");
 	}
-	ctx.log("setup_server: set reuse");
+	ctx.log("setup_server_tcp: set reuse");
 
 	if (bind(m_server_sockfd, (struct sockaddr *)&m_server_address, server_len) != 0)
 	{
-		ctx.log_p(ss::log::ERR, "setup_server: bind failed, exiting!");
-		throw std::runtime_error("setup_server: bind failed, exiting!");
+		ctx.log_p(ss::log::ERR, "setup_server_tcp: bind failed, exiting!");
+		throw std::runtime_error("setup_server_tcp: bind failed, exiting!");
 	}
 
 	if (listen(m_server_sockfd, backlog) < 0) {
-		ctx.log_p(ss::log::ERR, "setup_server: listen failed, exiting!");
-		throw std::runtime_error("setup_server: listen failed, exiting!");
+		ctx.log_p(ss::log::ERR, "setup_server_tcp: listen failed, exiting!");
+		throw std::runtime_error("setup_server_tcp: listen failed, exiting!");
 	}
 
-	ctx.log(std::format("setup_server: server_sockfd = {}", m_server_sockfd));
+	ctx.log(std::format("setup_server_tcp: server_sockfd = {}", m_server_sockfd));
 }
 
 void server_base::setup_server_un()
@@ -368,7 +369,7 @@ void server_base::setup_server_un()
 	ev.events = EPOLLIN | EPOLLRDHUP;
 	ev.data.fd = m_server_sockfd_un;
 	if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, m_server_sockfd_un, &ev) == -1) {
-		ctx.log_p(ss::log::ERR, std::format("setup_server: unable to add server socket to epoll, errno = {} ({}), exiting!", errno, strerror(errno)));
+		ctx.log_p(ss::log::ERR, std::format("setup_server_un: unable to add server socket to epoll, errno = {} ({}), exiting!", errno, strerror(errno)));
 		throw std::runtime_error("setup_server_un: unable to add server socket to epoll, exiting!");
 	}
 
@@ -378,6 +379,7 @@ void server_base::setup_server_un()
 	strcpy(m_server_address_un.sun_path, l_sockname.c_str());
 	int server_len = sizeof(m_server_address);
 	unlink(l_sockname.c_str());
+	ctx.log(std::format("setup_server_un: UNIX socket name = {}", l_sockname));
 
 	if (bind(m_server_sockfd_un, (struct sockaddr *)&m_server_address_un, server_len) != 0)
 	{

@@ -7,7 +7,7 @@
 class fortune_server : public ss::net::command_server {
 public:
 	fortune_server();
-	~fortune_server();
+	virtual ~fortune_server();
 	virtual void shutdown();
 protected:
 	ss::log::ctx& ctx = ss::log::ctx::get();

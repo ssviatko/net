@@ -22,7 +22,7 @@ public:
 	};
 	
 	command_server(const std::string& a_category, const std::string& a_auth_db);
-	~command_server();
+	virtual ~command_server();
 	virtual void shutdown();
 	virtual void newly_accepted_client(int client_sockfd);
 	virtual void data_from_client(int client_sockfd);

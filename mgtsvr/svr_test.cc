@@ -20,6 +20,7 @@ int main(int argc, char **argv)
 	l_icr.read_file("fortune.ini", false);
 	l_icr.read_arguments(argc, argv);
 
+	ctx.log(std::format("FORTUNE COOKIE SERVER v{} build {} built on: {}", RELEASE_NUMBER, BUILD_NUMBER, BUILD_DATE));
 	std::shared_ptr<fortune_server> l_server = std::make_shared<fortune_server>();
 	
 	// create default user

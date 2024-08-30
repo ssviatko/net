@@ -7,6 +7,7 @@ command_server::command_server(const std::string& a_category, const std::string&
 : ss::net::server_base(a_category)
 , m_auth_db_filename(a_auth_db)
 {
+	ctx.log("command_server starting up..");
 	ss::icr& l_icr = ss::icr::get();
 
 	if (l_icr.key_is_defined(m_category, "banner")) {
@@ -15,6 +16,7 @@ command_server::command_server(const std::string& a_category, const std::string&
 	// we are in charge of processing user commands, so we configure the auth layer
 	bool l_load = load_authdb(m_auth_db_filename);
 	ctx.log(std::format("loaded auth_db ({}): {})", m_auth_db_filename, l_load));
+	ctx.log("command processor UP");
 }
 
 command_server::~command_server()
@@ -26,6 +28,7 @@ void command_server::shutdown()
 	ctx.log("Shutting down command_server subsystem..");
 	bool l_save = save_authdb(m_auth_db_filename);
 	ctx.log(std::format("saved auth_db ({}): {})", m_auth_db_filename, l_save));
+	ctx.log("command processor DOWN");
 	server_base::shutdown();
 }
 

@@ -38,10 +38,10 @@ class server_base
 , public ss::ccl::dispatchable {
 public:
 	server_base(const std::string& a_category);
-	~server_base();
+	virtual ~server_base();
 	virtual void shutdown();
 	virtual bool dispatch();
-	void setup_server();
+	void setup_server_tcp();
 	void setup_server_un();
 	virtual void newly_accepted_client(int client_sockfd) = 0;
 	virtual void data_from_client(int client_sockfd) = 0;
