@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <thread>
 #include <chrono>
+#include <format>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -21,6 +22,7 @@
 #include "icr.h"
 #include "auth.h"
 #include "log.h"
+#include "doubletime.h"
 #include "dispatchable.h"
 
 namespace ss {
@@ -32,10 +34,19 @@ public:
 	~server_base();
 	virtual void shutdown();
 	virtual bool dispatch();
+	void setup_server();
+	void setup_server_un();
 	
 protected:
 	ss::log::ctx& ctx = ss::log::ctx::get();
 	std::string m_category;
+	ss::doubletime m_uptime;
+	
+	/* server globals */
+	int m_server_sockfd;
+	struct sockaddr_in m_server_address;
+	int m_server_sockfd_un;
+	struct sockaddr_un m_server_address_un;
 	int m_epollfd;
 };
 
