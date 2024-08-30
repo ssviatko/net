@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 	l_icr.read_file("fortune.ini", false);
 	l_icr.read_arguments(argc, argv);
 
-	std::shared_ptr<ss::net::fortune_server> l_server = std::make_shared<ss::net::fortune_server>();
+	std::shared_ptr<fortune_server> l_server = std::make_shared<fortune_server>();
 	
 	// create default user
 	bool l_add_user_success = l_server->add_user_plaintext_pw("ssviatko", "banana");
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 		l_icr.restart();
 		l_icr.read_file("fortune.ini", false);
 		l_icr.read_arguments(argc, argv);
-		l_server = std::make_shared<ss::net::fortune_server>();
+		l_server = std::make_shared<fortune_server>();
 	};
 	
 	l_fs.install_sigint_handler(ctrlc);

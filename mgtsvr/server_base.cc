@@ -70,13 +70,171 @@ void server_base::shutdown()
 	close(m_epollfd);
 	close(m_server_sockfd);
 	close(m_server_sockfd_un);
+	ctx.log(std::format("server DOWN (up for {} seconds)", ss::doubletime::now_as_double() - double(m_uptime)));
 }
 
 bool server_base::dispatch()
 {
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	ctx.log("server_base::dispatch: doing nothing and loving it");
+	struct epoll_event events[100];
+	int n = epoll_wait(m_epollfd, events, 100, 20);
+	if (n == 0) {
+		// housekeeping tasks while waiting for data go here
+		return true;
+	}
+	bool l_did_input = false;
+	while (n-- > 0) {
+		if (events[n].events & EPOLLIN) {
+			if ((events[n].data.fd == m_server_sockfd) || (events[n].data.fd == m_server_sockfd_un)) {
+				// accept connection
+				int l_client = accept_client(events[n].data.fd);
+				if (l_client == -1) {
+					ctx.log_p(ss::log::ERR, std::format("error accepting client at: {}", ss::doubletime::now_as_iso8601_ms()));
+					continue;
+				} else {
+					// client accepted successfully
+//					ctx.log_p(ss::log::INFO, std::format("accepted client at: {} on fd {}", ss::doubletime::now_as_iso8601_ms(), l_client));
+				}
+			} else {
+				// EPOLLIN on a client socket
+				int client_sockfd = events[n].data.fd;
+//				std::cout << "EPOLLIN on " << client_sockfd << std::endl;
+				drain_socket(client_sockfd);
+				l_did_input = true;
+			}
+		} else if (events[n].events & EPOLLHUP) {
+			int client_sockfd = events[n].data.fd;
+//			std::cout << "EPOLLHUP on " << client_sockfd << std::endl;
+			// had a client hang up, so remove its connection
+			remove_client(client_sockfd);
+		} else if (events[n].events & EPOLLOUT) {
+			// EPOLLOUT on a client socket
+//			flushout(events[n].data.fd);
+		}
+	}
+	if (l_did_input)
+		serve();
+
 	return true;
+}
+
+void server_base::serve()
+{
+	// iterate input hints set and execute waiting commands for each client
+	std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
+	std::set<int>::iterator l_input_hints_it = m_input_hints.begin();
+	while (l_input_hints_it != m_input_hints.end()) {
+		int l_curfd = (*l_input_hints_it);
+		data_from_client(l_curfd);
+		++l_input_hints_it;
+	}
+	m_input_hints.clear();
+}
+
+void server_base::drain_socket(int client_sockfd)
+{
+	std::array<std::uint8_t, DRAIN_BUFFER_SIZE> l_buffer;
+	int l_readbytes = read(client_sockfd, l_buffer.data(), DRAIN_BUFFER_SIZE);
+//	ctx.log(std::format("read {} bytes from fd: {}", l_readbytes, client_sockfd));
+	if (l_readbytes <= 0) {
+		// EOF
+		remove_client(client_sockfd);
+	} else {
+		// stick the data in client's input circular buffer
+		m_client_list_mtx.lock();
+		std::map<int, client_rec>::iterator client_list_it = m_client_list.find(client_sockfd);
+		client_list_it->second.m_in_circbuff.assign(l_buffer.data(), l_readbytes);
+		m_input_hints.insert(client_sockfd);
+		m_client_list_mtx.unlock();
+	}
+}
+
+
+int server_base::accept_client(int a_server_fd)
+{
+	client_rec l_rec;
+	l_rec.m_auth_state = auth_state::AUTH_STATE_NOAUTH;
+	l_rec.m_auth_username = "";
+	l_rec.m_in_circbuff.set_circular_mode(true);
+	l_rec.m_out_circbuff.set_circular_mode(true);
+	socklen_t client_len;
+	int client_sockfd = 0;
+	struct sockaddr_in client_address;
+	struct sockaddr_un client_address_un;
+	if (a_server_fd == m_server_sockfd) {
+		client_len = sizeof(client_address);
+		client_sockfd = accept4(m_server_sockfd, (struct sockaddr *)&client_address, &client_len, SOCK_NONBLOCK);
+		if (client_sockfd == -1) return -1; // some error accepting so just keep on going
+		l_rec.m_family = AF_INET;
+		l_rec.m_sockaddr_in = client_address;
+	} else if (a_server_fd == m_server_sockfd_un) {
+		client_len = sizeof(client_address_un);
+		client_sockfd = accept4(m_server_sockfd_un, (struct sockaddr *)&client_address_un, &client_len, SOCK_NONBLOCK);
+		if (client_sockfd == -1) return -1;
+		l_rec.m_family = AF_UNIX;
+		l_rec.m_sockaddr_un = client_address_un;
+	}
+	// build client record
+	l_rec.m_connect_time.now();
+	m_client_list_mtx.lock();
+	m_client_list.insert(std::pair<int, client_rec>(client_sockfd, l_rec));
+	// add socket to epoll
+	struct epoll_event l_client_info;
+	l_client_info.events = EPOLLIN | EPOLLHUP;
+	l_client_info.data.fd = client_sockfd;
+	epoll_ctl(m_epollfd, EPOLL_CTL_ADD, client_sockfd, &l_client_info);
+	m_client_list_mtx.unlock();
+
+	switch (l_rec.m_family) {
+		case AF_INET:
+			ctx.log_p(ss::log::INFO, std::format("accepted TCP client fd: {} ({}) at: {}", client_sockfd, ip_str(&l_rec.m_sockaddr_in), l_rec.m_connect_time.iso8601_ms()));
+			break;
+		case AF_UNIX:
+			ctx.log_p(ss::log::INFO, std::format("accepted UNIX client fd: {} ({}) at: {}", client_sockfd, un_str(&l_rec.m_sockaddr_un), l_rec.m_connect_time.iso8601_ms()));
+			break;
+	}
+	return client_sockfd;
+}
+
+void server_base::remove_client(int client_sockfd)
+{
+	std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
+	close(client_sockfd);
+	// remove from epoll
+	struct epoll_event l_client_info;
+	l_client_info.events = 0;
+	epoll_ctl(m_epollfd, EPOLL_CTL_DEL, client_sockfd, &l_client_info);
+	std::map<int, client_rec>::iterator client_list_it = m_client_list.find(client_sockfd);
+	double l_ct = double(client_list_it->second.m_connect_time);
+	switch (client_list_it->second.m_family) {
+		case AF_INET:
+			ctx.log_p(ss::log::INFO, std::format("disconnected TCP client fd: {} ({}) at: {} connected for {} seconds.", client_sockfd, ip_str(&client_list_it->second.m_sockaddr_in), ss::doubletime::now_as_iso8601_ms(), ss::doubletime::now_as_double() - l_ct));
+			break;
+		case AF_UNIX:
+			ctx.log_p(ss::log::INFO, std::format("disconnected UNIX client fd: {} ({}) at: {} connected for {} seconds.", client_sockfd, un_str(&client_list_it->second.m_sockaddr_un), ss::doubletime::now_as_iso8601_ms(), ss::doubletime::now_as_double() - l_ct));
+			break;
+	}
+	m_client_list.erase(client_list_it);
+	// remove client_sockfd from hints list
+	m_input_hints.erase(client_sockfd);
+}
+
+std::string server_base::ip_str(const struct sockaddr_in *a_addr)
+{
+	std::stringstream l_ss;
+	std::string l_host = std::string(inet_ntoa(a_addr->sin_addr));
+	l_ss << l_host << ":" << ntohs(a_addr->sin_port);
+	return l_ss.str();
+}
+
+std::string server_base::un_str(const struct sockaddr_un *a_addr)
+{
+//	ss::data l_sun_path;
+//	l_sun_path.emplace((std::uint8_t *)a_addr->sun_path, 14);
+//	std::string l_host = l_sun_path.read_hex_str(14);
+//	return l_host;
+
+	// contents of client side sockaddr_un appear to be gibberish?
+	return "UNIX socket connection";
 }
 
 void server_base::setup_server()

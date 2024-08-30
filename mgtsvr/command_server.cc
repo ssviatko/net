@@ -29,5 +29,28 @@ void command_server::shutdown()
 	server_base::shutdown();
 }
 
+void command_server::data_from_client(int client_sockfd)
+{
+	// we are called when a client sockfd has actionable data waiting. Our job is to grab
+	// the data piecemeal (as strings in this case) and enqueue if for service.
+	// client_list is locked while we are in here, our caller will unlock it.
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	while (l_client_list_it->second.m_in_circbuff.size() > 0) {
+		std::optional<std::string> l_data = l_client_list_it->second.m_in_circbuff.read_std_str_delim();
+		if (l_data.has_value()) {
+			if (l_data.value().size() > 0) {
+				command_work_item l_item;
+				l_item.client_sockfd = client_sockfd;
+				l_item.data = l_data.value();
+//				ctx.log(std::format("data_from_client: enqueueing {} from fd {}", l_data.value(), client_sockfd));
+				m_queue.add_work_item(l_item);
+			}
+		} else {
+			// stop processing this file descriptor
+			break;
+		}
+	}
+}
+
 } // namespace net
 } // namespace ss
