@@ -23,6 +23,7 @@ class icr {
 
 public:
 	static icr& get();
+	void restart();
 
 	// set/get individual keys
 	void set_keyvalue(const std::string& a_category, const std::string& a_key, const std::string& a_value);
@@ -63,6 +64,7 @@ public:
 	bool env_expand(std::string& a_str); ///< Expand tokens from defined environment variables.
 
 protected:
+	void shutdown();
 	std::map<std::string, std::shared_ptr<std::map<std::string, std::string> > > m_categories;
 	std::vector<std::string> m_files;
 	void process_file(const std::string& a_filename, bool do_update);

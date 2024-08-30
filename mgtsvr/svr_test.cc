@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <memory>
 
 #include "log.h"
 #include "fs.h"
@@ -19,19 +20,30 @@ int main(int argc, char **argv)
 	l_icr.read_file("fortune.ini", false);
 	l_icr.read_arguments(argc, argv);
 
-	ss::net::fortune_server l_server;
+	std::shared_ptr<ss::net::fortune_server> l_server = std::make_shared<ss::net::fortune_server>();
 	
 	// create default user
-	bool l_add_user_success = l_server.add_user_plaintext_pw("ssviatko", "banana");
+	bool l_add_user_success = l_server->add_user_plaintext_pw("ssviatko", "banana");
 	ctx.log(std::format("add default user ssviatko: {}", l_add_user_success));
 
 	auto ctrlc = [&]() {
 		ctx.log_p(ss::log::NOTICE, "Ctrl-C Pressed, exiting gracefully...");
-		l_server.shutdown();
+		l_server->shutdown();
 		exit(EXIT_SUCCESS);
 	};
 	
+	auto hup = [&]() {
+		ctx.log_p(ss::log::NOTICE, "Caught SIGHUP, reloading config and restarting server...");
+		l_server->shutdown();
+		l_server.reset();
+		l_icr.restart();
+		l_icr.read_file("fortune.ini", false);
+		l_icr.read_arguments(argc, argv);
+		l_server = std::make_shared<ss::net::fortune_server>();
+	};
+	
 	l_fs.install_sigint_handler(ctrlc);
+	l_fs.install_sighup_handler(hup);
 	
 	while (1)
 		std::this_thread::sleep_for(std::chrono::microseconds(50));
