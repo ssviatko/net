@@ -1,4 +1,8 @@
-
 FORTUNE COOKIE SERVER
+
 A demonstration of the ss::net server tools and functions.
 
+This server, it's content, and all messages and output are
+(C) 2024 Good Neighbors LLC. All rights reserved.
+
+Please log on to the server.

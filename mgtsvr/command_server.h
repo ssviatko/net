@@ -4,6 +4,7 @@
 #include <string>
 #include <format>
 #include <vector>
+#include <set>
 #include <optional>
 #include <thread>
 #include <mutex>
@@ -41,7 +42,13 @@ protected:
 	std::string m_auth_db_filename;
 	ss::ccl::work_queue<command_work_item> m_queue;
 	// command server functions
+	void lock_client_output(int client_sockfd);
+	void unlock_client_output(int client_sockfd);
 	void send_to_client(int client_sockfd, const std::string& a_string);
+	void send_to_client_atomic(int client_sockfd, const std::string& a_string);
+	void prompt(int client_sockfd);
+	bool m_prompts;
+	std::string pad(const std::string& a_string, std::size_t a_len);
 	unsigned int m_worker_threads;
 	std::mutex m_finish_sem_mutex; // roll your own semaphore, we want to block until it reaches zero
 	unsigned int m_finish_sem;

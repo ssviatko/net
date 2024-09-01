@@ -140,6 +140,7 @@ bool auth::add_user(const std::string& a_username, const std::string& a_password
 	l_rec.last = ss::doubletime(0.0);
 	l_rec.creation = ss::doubletime();
 	l_rec.priv_level = 0; // standard user
+	l_rec.logged_in = false;
 //	std::cout << "add_user: " << l_rec.username << ", pw=" << l_rec.password_hash << std::endl;
 	m_user_records.insert(std::pair<std::string, user_rec>(l_rec.username, l_rec));
 	return true;

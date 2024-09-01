@@ -6,12 +6,14 @@
 #include <exception>
 #include <stdexcept>
 #include <thread>
+#include <mutex>
 #include <chrono>
 #include <format>
 #include <map>
 #include <set>
 #include <array>
 #include <cstdint>
+#include <atomic>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -40,6 +42,7 @@ public:
 	server_base(const std::string& a_category);
 	virtual ~server_base();
 	virtual void shutdown();
+	bool request_down() { return m_request_down; }
 	virtual bool dispatch();
 	void setup_server_tcp();
 	void setup_server_un();
@@ -61,18 +64,22 @@ protected:
 	struct client_rec {
 		auth_state m_auth_state;
 		std::string m_auth_username;
+		challenge_pack m_auth_challenge_pack;
 		sa_family_t m_family;
 		struct sockaddr_in m_sockaddr_in;
 		struct sockaddr_un m_sockaddr_un;
 		ss::doubletime m_connect_time;
 		ss::data m_in_circbuff;
 		ss::data m_out_circbuff;
+		// mutexes are not copyable.. we will will do it this ugly way
+		std::shared_ptr<std::mutex> m_out_circbuff_mtx;
 	};
 
 	ss::log::ctx& ctx = ss::log::ctx::get();
 	std::string m_category;
 	int m_auth_policy;
 	ss::doubletime m_uptime;
+	std::atomic<bool> m_request_down;
 	
 	// server functions
 	void set_epollout_for_fd(int a_fd);

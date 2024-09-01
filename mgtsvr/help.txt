@@ -1,0 +1,14 @@
+FORTUNE SERVER
+Commands guide
+
+Fortune Server commands:
+
+FORTUNE                Display a fortune
+
+Internal commands:
+
+/HELP                  This screen
+/WHOAMI                Display information about logged-in user
+/USERS                 Display the user list of the system
+/BROADCAST <message>   Send broadcast message to all users (requires priv_level -1 or less)
+/EXIT                  Log out of server

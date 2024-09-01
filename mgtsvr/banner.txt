@@ -1,3 +1,6 @@
-
 Welcome to the Fortune Cookie server!
 
+Please feel free to enter the "FORTUNE" command to get a random fortune cookie message.
+
+In the spirit of friendly gatherings at Chinese restaurants, the phrase "in bed" is
+appended to each fortune cookie message in order to make things more interesting.

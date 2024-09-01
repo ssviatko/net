@@ -24,6 +24,6 @@ void fortune_server::external_command(int client_sockfd, std::vector<std::string
 	if (a_cmdv[0] == "FORTUNE") {
 		send_to_client(client_sockfd, "You will move mountains.. in bed.");
 	} else {
-		send_to_client(client_sockfd, "fortune_server: unrecognized command.");
+		send_to_client(client_sockfd, "[fortune_server: unrecognized command.]");
 	}
 }

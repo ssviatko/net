@@ -27,7 +27,29 @@ command_server::command_server(const std::string& a_category, const std::string&
 	// we are in charge of processing user commands, so we configure the auth layer
 	bool l_load = load_authdb(m_auth_db_filename);
 	ctx.log(std::format("loaded auth_db ({}): {})", m_auth_db_filename, l_load));
+	if (!l_load) {
+		// if we didn't load the auth db (i.e. we're starting from scratch), create some default accounts
+		bool l_add_user_success;
+		l_add_user_success = add_user_plaintext_pw("ssviatko", "banana");
+		ctx.log(std::format("add default user ssviatko: {}", l_add_user_success));
+		l_add_user_success = add_user_plaintext_pw("admin", "admin");
+		set_priv_level("admin", -1);
+		ctx.log(std::format("add default user admin: {}", l_add_user_success));
+		l_add_user_success = add_user_plaintext_pw("operator", "operator");
+		set_priv_level("operator", -2);
+		ctx.log(std::format("add default user operator: {}", l_add_user_success));
+		l_add_user_success = add_user_plaintext_pw("chump", "chump");
+		set_priv_level("chump", 1);
+		ctx.log(std::format("add default user chump: {}", l_add_user_success));
+	}
 	
+	// prompts
+	if (!l_icr.key_is_defined(m_category, "prompts")) {
+		ctx.log_p(ss::log::ERR, "key <prompts> must be defined in ini file, exiting!");
+		throw std::runtime_error("command_server: key <prompts> must be defined in ini file, exiting!");
+	}
+	m_prompts = l_icr.to_boolean(l_icr.keyvalue(m_category, "prompts"));
+
 	// start worker threads
 	if (!l_icr.key_is_defined(m_category, "worker_threads")) {
 		ctx.log_p(ss::log::ERR, "key <worker_threads> must be defined in ini file, exiting!");
@@ -59,6 +81,23 @@ command_server::~command_server()
 void command_server::shutdown()
 {
 	ctx.log("Shutting down command_server subsystem..");
+
+	// tell everybody we're shutting down
+	std::set<int> l_clients;
+	// grab list of connected clients
+	m_client_list_mtx.lock();
+	for (auto& [key, value] : m_client_list)
+		l_clients.insert(key);
+	m_client_list_mtx.unlock();
+	// iterate the set and send out the broadcast
+	for (auto& i : l_clients) {
+		lock_client_output(i);
+		send_to_client_atomic(i, "[command_server: system is shutting down immediately]");
+		send_to_client_atomic(i, "disconnecting...");
+		unlock_client_output(i);
+	}
+
+	// shut down the work queue - no more command execution at this point
 	m_queue.shut_down();
 	// wait for worker threads to finish up
 	do {
@@ -73,6 +112,14 @@ void command_server::shutdown()
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 	} while (1);
 	ctx.log("Worker threads completed.");
+
+	// log everybody off
+	for (auto& [key, value] : m_user_records) {
+		auto l_logged_in = logged_in(key);
+		if (l_logged_in.value())
+			logout(key);
+	}
+
 	bool l_save = save_authdb(m_auth_db_filename);
 	ctx.log(std::format("saved auth_db ({}): {})", m_auth_db_filename, l_save));
 	ctx.log("command processor DOWN");
@@ -105,9 +152,30 @@ void command_server::newly_accepted_client(int client_sockfd)
 	}
 }
 
+void command_server::lock_client_output(int client_sockfd)
+{
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	l_client_list_it->second.m_out_circbuff_mtx->lock();
+}
+
+void command_server::unlock_client_output(int client_sockfd)
+{
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	l_client_list_it->second.m_out_circbuff_mtx->unlock();
+}
+
 void command_server::send_to_client(int client_sockfd, const std::string& a_string)
 {
-	// assumes m_client_list_mtx is locked
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+	std::lock_guard<std::mutex> l_guard(*(l_client_list_it->second.m_out_circbuff_mtx));
+	l_client_list_it->second.m_out_circbuff.write_std_str_delim(a_string);
+	set_epollout_for_fd(client_sockfd);
+}
+
+void command_server::send_to_client_atomic(int client_sockfd, const std::string& a_string)
+{
+	// same as above, but without locking the client's output mutex.
+	// this is so multiple sends can be done in one atomic operation.
 	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
 	l_client_list_it->second.m_out_circbuff.write_std_str_delim(a_string);
 	set_epollout_for_fd(client_sockfd);
@@ -145,6 +213,10 @@ void command_server::worker_thread(const std::string& a_logname)
 		std::optional<command_work_item> l_item = m_queue.wait_for_item(20);
 		if (l_item.has_value()) {
 			process_command(l_item.value());
+			// prompt user if they are logged in
+			std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(l_item.value().client_sockfd);
+			if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON)
+				prompt(l_item.value().client_sockfd);
 		}
 	}
 	m_finish_sem_mutex.lock();
@@ -191,6 +263,26 @@ std::vector<std::string> command_server::split_command(const std::string& a_comm
 	return l_ret;
 }
 
+std::string command_server::pad(const std::string& a_string, std::size_t a_len)
+{
+	std::string l_ret;
+	for (std::size_t i = 0; i < a_len; ++i)
+		l_ret += ' ';
+	l_ret = a_string + l_ret;
+	return l_ret.substr(0, a_len);
+}
+
+void command_server::prompt(int client_sockfd)
+{
+	if (m_prompts) {
+		std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+		lock_client_output(client_sockfd);
+		send_to_client_atomic(client_sockfd, std::format("[{} {}]", m_category, ss::doubletime::now_as_iso8601_ms()));
+		send_to_client_atomic(client_sockfd, std::format("{}: please enter a command.", l_client_list_it->second.m_auth_username));
+		unlock_client_output(client_sockfd);
+	}
+}
+
 void command_server::process_command(command_work_item a_item)
 {
 	ctx.log(std::format("processing command from fd {}, cmd = {}", a_item.client_sockfd, a_item.data));
@@ -206,6 +298,18 @@ void command_server::process_command(command_work_item a_item)
 			return;
 		}
 	} else if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_AWAIT_USERNAME) {
+		// user already logged on?
+		auto l_logged_in = logged_in(a_item.data);
+		if (l_logged_in.has_value()) {
+			if (l_logged_in.value()) { // check these in succession to prevent a bad option exception
+				send_to_client(a_item.client_sockfd, "[user already logged in]");
+				send_to_client(a_item.client_sockfd, "disconnecting...");
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				ctx.log_p(ss::log::NOTICE, std::format("user {} attempted multiple logons, disconnecting", a_item.data));
+				remove_client(a_item.client_sockfd);
+				return;
+			}
+		}
 		// this user entered username, so process it
 		if (m_auth_policy == 2) {
 			// ask user for password
@@ -216,7 +320,24 @@ void command_server::process_command(command_work_item a_item)
 			l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_AWAIT_PASSWORD;
 			return;
 		} else if (m_auth_policy == 3) {
+			l_client_list_it->second.m_auth_username = a_item.data;
+			ctx.log_p(ss::log::NOTICE, std::format("user {} attempting logon", l_client_list_it->second.m_auth_username));
 			// send user a session hash and challenge them
+			std::optional<challenge_pack> l_pack = challenge(l_client_list_it->second.m_auth_username);
+			if (!l_pack.has_value()) {
+				// no such user
+				send_to_client(a_item.client_sockfd, "[no such user]");
+				send_to_client(a_item.client_sockfd, "disconnecting...");
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				ctx.log_p(ss::log::NOTICE, std::format("no such user {} found in auth database, disconnecting user", l_client_list_it->second.m_auth_username));
+				remove_client(a_item.client_sockfd);
+				return;
+			}
+			// record the challenge pack so we can reference it later
+			l_client_list_it->second.m_auth_challenge_pack = l_pack.value();
+			// send "session:" string
+			send_to_client(a_item.client_sockfd, std::format("session: {}", l_pack.value().session));
+			l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_AWAIT_CHAL;
 			return;
 		}
 	} else if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_AWAIT_PASSWORD) {
@@ -224,7 +345,8 @@ void command_server::process_command(command_work_item a_item)
 		std::optional<challenge_pack> l_pack = challenge(l_client_list_it->second.m_auth_username);
 		if (!l_pack.has_value()) {
 			// no such user
-			send_to_client(a_item.client_sockfd, "no such user");
+			send_to_client(a_item.client_sockfd, "[no such user]");
+			send_to_client(a_item.client_sockfd, "disconnecting...");
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			ctx.log_p(ss::log::NOTICE, std::format("no such user {} found in auth database, disconnecting user", l_client_list_it->second.m_auth_username));
 			remove_client(a_item.client_sockfd);
@@ -249,7 +371,31 @@ void command_server::process_command(command_work_item a_item)
 			return;
 		} else {
 			// not authenticated
-			send_to_client(a_item.client_sockfd, "unable to authenticate");
+			send_to_client(a_item.client_sockfd, "[unable to authenticate]");
+			send_to_client(a_item.client_sockfd, "disconnecting...");
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			ctx.log_p(ss::log::INFO, std::format("unable to authenticate user {}", l_client_list_it->second.m_auth_username));
+			remove_client(a_item.client_sockfd);
+			return;
+		}
+	} else if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_AWAIT_CHAL) {
+		// auth_policy 3: user has accepted our challenge and sent his reply hash
+//		std::cout << "expected_response " << l_client_list_it->second.m_auth_challenge_pack.expected_response << " actual response: " << a_item.data << std::endl;
+		bool l_authenticated = authenticate(l_client_list_it->second.m_auth_username, l_client_list_it->second.m_auth_challenge_pack, a_item.data);
+		if (l_authenticated) {
+			ctx.log_p(ss::log::INFO, std::format("authenticated user {}", l_client_list_it->second.m_auth_username));
+			if (m_banner) {
+				ss::data l_banner;
+				l_banner.load_file(m_banner_file);
+				std::string l_string = l_banner.read_std_str(l_banner.size());
+				send_to_client(a_item.client_sockfd, l_string);
+			}
+			l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_LOGGED_ON;
+			return;
+		} else {
+			// not authenticated
+			send_to_client(a_item.client_sockfd, "[unable to authenticate]");
+			send_to_client(a_item.client_sockfd, "disconnecting...");
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			ctx.log_p(ss::log::INFO, std::format("unable to authenticate user {}", l_client_list_it->second.m_auth_username));
 			remove_client(a_item.client_sockfd);
@@ -271,7 +417,8 @@ void command_server::process_command(command_work_item a_item)
 	std::string l_user = l_client_list_it->second.m_auth_username;
 	if (l_cmdv[0] == "EXIT") {
 		// preform logoff
-		send_to_client(a_item.client_sockfd, "logging you off");
+		send_to_client(a_item.client_sockfd, "[logging you off]");
+		send_to_client(a_item.client_sockfd, "disconnecting...");
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		if (m_auth_policy >= 1 && l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON) {
 			ctx.log_p(ss::log::INFO, std::format("logging off user {}", l_user));
@@ -282,24 +429,81 @@ void command_server::process_command(command_work_item a_item)
 	}
 	if (l_cmdv[0] == "WHOAMI") {
 		if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON) {
-			send_to_client(a_item.client_sockfd, std::format("you are: {}", l_user));
+			lock_client_output(a_item.client_sockfd);
+			send_to_client_atomic(a_item.client_sockfd, std::format("you are: {}", l_user));
 			auto l_priv = priv_level(l_user);
-			send_to_client(a_item.client_sockfd, std::format("privilege level: {}", l_priv.value()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("privilege level: {}", l_priv.value()));
 			auto l_last_login = last_login(l_user);
-			send_to_client(a_item.client_sockfd, std::format("last login: {}", l_last_login.value().iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("last login: {}", l_last_login.value().iso8601_ms()));
 			auto l_last = last(l_user);
-			send_to_client(a_item.client_sockfd, std::format("last seen: {}", l_last.value().iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("last seen: {}", l_last.value().iso8601_ms()));
 			auto l_creation = creation(l_user);
-			send_to_client(a_item.client_sockfd, std::format("account creation: {}", l_creation.value().iso8601_ms()));
-			send_to_client(a_item.client_sockfd, std::format("connected on: {}", l_client_list_it->second.m_connect_time.iso8601_ms()));
-			send_to_client(a_item.client_sockfd, std::format("connected for {} seconds.", ss::doubletime::now_as_double() - double(l_client_list_it->second.m_connect_time)));
+			send_to_client_atomic(a_item.client_sockfd, std::format("account creation: {}", l_creation.value().iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("connected on: {}", l_client_list_it->second.m_connect_time.iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("connected for {} seconds.", ss::doubletime::now_as_double() - double(l_client_list_it->second.m_connect_time)));
+			unlock_client_output(a_item.client_sockfd);
 		} else {
 			send_to_client(a_item.client_sockfd, "not logged in");
 		}
 		return;
 	}
+	if (l_cmdv[0] == "HELP") {
+		// display help file
+		ss::data l_help;
+		l_help.load_file("help.txt");
+		std::string l_string = l_help.read_std_str(l_help.size());
+		send_to_client(a_item.client_sockfd, l_string);
+		return;
+	}
+	if (l_cmdv[0] == "USERS") {
+		// display user list
+		lock_client_output(a_item.client_sockfd);
+		send_to_client_atomic(a_item.client_sockfd, "username        priv online last seen");
+		for (auto& [key, value] : m_user_records) {
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}{}{}", pad(key, 16), pad(std::format("{}", value.priv_level), 5), pad(std::format("{}", value.logged_in), 7), value.last.iso8601_ms()));
+		}
+		send_to_client_atomic(a_item.client_sockfd, std::format("{} user records.", m_user_records.size()));
+		unlock_client_output(a_item.client_sockfd);
+		return;
+	}
+	if (l_cmdv[0] == "BROADCAST") {
+		// if auth_policy >= 2 check if user is -1 or less
+		auto l_priv_level = priv_level(l_user);
+		if ((m_auth_policy >= 2) && (l_priv_level.value() > -1)) {
+			send_to_client(a_item.client_sockfd, std::format("[command_server: you do not have privileges to execute the command {}.", l_cmdv[0]));
+			return;
+		}
+		std::set<int> l_clients;
+		// grab list of connected clients
+		m_client_list_mtx.lock();
+		for (auto& [key, value] : m_client_list)
+			l_clients.insert(key);
+		m_client_list_mtx.unlock();
+		// now remove ourselves
+		l_clients.erase(a_item.client_sockfd);
+		// iterate the set and send out the broadcast
+		for (auto& i : l_clients) {
+			lock_client_output(i);
+			send_to_client_atomic(i, std::format("[broadcast message from user: {}]", l_user));
+			send_to_client_atomic(i, l_cmdv[1]);
+			unlock_client_output(i);
+		}
+		send_to_client(a_item.client_sockfd, std::format("[command_server: sent BROADCAST message to {} users.", l_clients.size()));
+		return;
+	}
+	if (l_cmdv[0] == "DOWN") {
+		// if auth_policy >= 2 check if user is -2 or less
+		auto l_priv_level = priv_level(l_user);
+		if ((m_auth_policy >= 2) && (l_priv_level.value() > -2)) {
+			send_to_client(a_item.client_sockfd, std::format("[command_server: you do not have privileges to execute the command {}.", l_cmdv[0]));
+			return;
+		}
+		send_to_client(a_item.client_sockfd, "[command_server: requesting server DOWN]");
+		m_request_down = true;
+		return;
+	}
 	
-	std::string l_response = std::format("command_server: internal command {} not recognized", l_cmdv[0]);
+	std::string l_response = std::format("[command_server: internal command {} not recognized]", l_cmdv[0]);
 	send_to_client(a_item.client_sockfd, l_response);
 }
 

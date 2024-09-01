@@ -23,10 +23,6 @@ int main(int argc, char **argv)
 	ctx.log(std::format("FORTUNE COOKIE SERVER v{} build {} built on: {}", RELEASE_NUMBER, BUILD_NUMBER, BUILD_DATE));
 	std::shared_ptr<fortune_server> l_server = std::make_shared<fortune_server>();
 	
-	// create default user
-	bool l_add_user_success = l_server->add_user_plaintext_pw("ssviatko", "banana");
-	ctx.log(std::format("add default user ssviatko: {}", l_add_user_success));
-
 	auto ctrlc = [&]() {
 		ctx.log_p(ss::log::NOTICE, "Ctrl-C Pressed, exiting gracefully...");
 		l_server->shutdown();
@@ -46,8 +42,13 @@ int main(int argc, char **argv)
 	l_fs.install_sigint_handler(ctrlc);
 	l_fs.install_sighup_handler(hup);
 	
-	while (1)
+	while (1) {
 		std::this_thread::sleep_for(std::chrono::microseconds(50));
+		if (l_server->request_down()) {
+			l_server->shutdown();
+			return 0;
+		}
+	}
 	
 	return 0;
 }
