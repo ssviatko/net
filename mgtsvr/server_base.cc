@@ -5,7 +5,7 @@ namespace net {
 
 server_base::server_base(const std::string& a_category)
 : ss::net::auth(ss::net::auth::role::SERVER)
-, ss::ccl::dispatchable(a_category + "_basedisp")
+, ss::ccl::dispatchable(a_category + "_iodispatch")
 , m_category(a_category)
 {
 	ctx.log("server_base starting up..");
