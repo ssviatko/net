@@ -12,6 +12,17 @@ command_server::command_server(const std::string& a_category, const std::string&
 
 	if (l_icr.key_is_defined(m_category, "banner")) {
 		m_banner = l_icr.to_boolean(l_icr.keyvalue(m_category, "banner"));
+		m_banner_file = l_icr.keyvalue(m_category, "banner_file");
+	}
+	if (l_icr.key_is_defined(m_category, "logon_banner")) {
+		m_logon_banner = l_icr.to_boolean(l_icr.keyvalue(m_category, "logon_banner"));
+		m_logon_banner_file = l_icr.keyvalue(m_category, "logon_banner_file");
+	}
+	if (m_banner) {
+		ctx.log(std::format("banner ACTIVE, file = {}", m_banner_file));
+	}
+	if (m_logon_banner) {
+		ctx.log(std::format("logon banner ACTIVE, file = {}", m_logon_banner_file));
 	}
 	// we are in charge of processing user commands, so we configure the auth layer
 	bool l_load = load_authdb(m_auth_db_filename);
@@ -35,11 +46,27 @@ void command_server::shutdown()
 void command_server::newly_accepted_client(int client_sockfd)
 {
 //	ctx.log(std::format("newly_accepted_client: {}", client_sockfd));
-	std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
-	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
-	// send "username:" string
-	send_to_client(client_sockfd, "username: ");
-	l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_AWAIT_USERNAME;
+	if (m_logon_banner) {
+		ss::data l_logon_banner;
+		l_logon_banner.load_file(m_logon_banner_file);
+		std::string l_string = l_logon_banner.read_std_str(l_logon_banner.size());
+		send_to_client(client_sockfd, l_string);
+	}
+	if (m_auth_policy > 1) {
+		std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
+		std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
+		// send "username:" string
+		send_to_client(client_sockfd, "username: ");
+		l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_AWAIT_USERNAME;
+	} else {
+		// no logon, just send banner if it is configured
+		if (m_banner) {
+			ss::data l_banner;
+			l_banner.load_file(m_banner_file);
+			std::string l_string = l_banner.read_std_str(l_banner.size());
+			send_to_client(client_sockfd, l_string);
+		}
+	}
 }
 
 void command_server::send_to_client(int client_sockfd, const std::string& a_string)

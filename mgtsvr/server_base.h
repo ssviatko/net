@@ -53,6 +53,7 @@ protected:
 	enum auth_state {
 		AUTH_STATE_NOAUTH,
 		AUTH_STATE_AWAIT_USERNAME,
+		AUTH_STATE_AWAIT_PASSWORD,
 		AUTH_STATE_AWAIT_CHAL,
 		AUTH_STATE_LOGGED_ON
 	};
@@ -70,6 +71,7 @@ protected:
 
 	ss::log::ctx& ctx = ss::log::ctx::get();
 	std::string m_category;
+	int m_auth_policy;
 	ss::doubletime m_uptime;
 	
 	// server functions

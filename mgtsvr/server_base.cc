@@ -11,6 +11,13 @@ server_base::server_base(const std::string& a_category)
 	ctx.log("server_base starting up..");
 	ss::icr& l_icr = ss::icr::get();
 
+	if (!l_icr.key_is_defined(m_category, "auth_policy")) {
+		ctx.log_p(ss::log::NOTICE, "key <auth_policy> must be defined in ini file, exiting!");
+		throw std::runtime_error("server_base: key <auth_policy> must be defined in ini file, exiting!");
+	}
+	m_auth_policy = l_icr.to_integer(l_icr.keyvalue(m_category, "auth_policy"));
+	ctx.log_p(ss::log::INFO, std::format("authorization policy: {}", m_auth_policy));
+	
 	if (!l_icr.key_is_defined(m_category, "port")) {
 		ctx.log_p(ss::log::NOTICE, "key <port> must be defined in ini file, exiting!");
 		throw std::runtime_error("server_base: key <port> must be defined in ini file, exiting!");
