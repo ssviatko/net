@@ -18,3 +18,12 @@ void fortune_server::shutdown()
 	ctx.log("fortune_server DOWN");
 	command_server::shutdown();
 }
+
+void fortune_server::external_command(int client_sockfd, std::vector<std::string>& a_cmdv)
+{
+	if (a_cmdv[0] == "FORTUNE") {
+		send_to_client(client_sockfd, "You will move mountains.. in bed.");
+	} else {
+		send_to_client(client_sockfd, "fortune_server: unrecognized command.");
+	}
+}

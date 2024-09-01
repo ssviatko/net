@@ -153,10 +153,153 @@ void command_server::worker_thread(const std::string& a_logname)
 	ctx.log_p(ss::log::INFO, std::format("worker thread exiting..."));
 }
 
+std::vector<std::string> command_server::split_command(const std::string& a_command)
+{
+	std::vector<std::string> l_ret;
+	enum { COLLECT, QUOTED, SPLIT } l_state;
+	std::string l_current;
+	std::string l_str = a_command;
+	icr::get().trim_std_string(l_str);
+	l_str += " "; // tack a space on the end of our work string to make it easier on our state machine
+
+	l_state = COLLECT;
+	for (unsigned int i = 0; i < l_str.size(); ++i) {
+		char l_next = l_str[i];
+		if (l_state == COLLECT) {
+			if (l_next == '\"') {
+				// discard quote character and switch to quote mode
+				l_state = QUOTED;
+			} else if (l_next == ' ') {
+				// split character, trim current string and insert it into vector
+				l_ret.push_back(l_current);
+				l_current = "";
+				l_state = COLLECT;
+			} else {
+				// append this character
+				l_current += l_next;
+			}
+		} else if (l_state == QUOTED) {
+			if (l_next == '\"') {
+				// discard quote character and switch back to collect mode
+				l_state = COLLECT;
+			} else {
+				// append this character, even if it is a space
+				l_current += l_next;
+			}
+		}
+	}
+	return l_ret;
+}
+
 void command_server::process_command(command_work_item a_item)
 {
 	ctx.log(std::format("processing command from fd {}, cmd = {}", a_item.client_sockfd, a_item.data));
-	std::string l_response = std::format("COMMAND: {}", a_item.data);
+
+	// eheck if we're even an authorized user
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(a_item.client_sockfd);
+	if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_NOAUTH) {
+		// a non! make sure this is ok
+		if (m_auth_policy >= 2) {
+			// can't be a non on here if we're requiring logins, so kick this asshole off
+			ctx.log_p(ss::log::NOTICE, std::format("Discovered non-user online on fd {} when auth_policy requires logins. Disconnecting user", a_item.client_sockfd));
+			remove_client(a_item.client_sockfd);
+			return;
+		}
+	} else if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_AWAIT_USERNAME) {
+		// this user entered username, so process it
+		if (m_auth_policy == 2) {
+			// ask user for password
+			l_client_list_it->second.m_auth_username = a_item.data;
+			ctx.log_p(ss::log::NOTICE, std::format("user {} attempting logon", l_client_list_it->second.m_auth_username));
+			// send "password:" string
+			send_to_client(a_item.client_sockfd, "password: ");
+			l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_AWAIT_PASSWORD;
+			return;
+		} else if (m_auth_policy == 3) {
+			// send user a session hash and challenge them
+			return;
+		}
+	} else if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_AWAIT_PASSWORD) {
+		// if auth_policy is set to 2, we will wind up here after user enters plaintext password
+		std::optional<challenge_pack> l_pack = challenge(l_client_list_it->second.m_auth_username);
+		if (!l_pack.has_value()) {
+			// no such user
+			send_to_client(a_item.client_sockfd, "no such user");
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			ctx.log_p(ss::log::NOTICE, std::format("no such user {} found in auth database, disconnecting user", l_client_list_it->second.m_auth_username));
+			remove_client(a_item.client_sockfd);
+			return;
+		}
+		auth l_dummy_client(auth::role::CLIENT);
+		std::optional<std::string> l_response = l_dummy_client.challenge_response(l_pack.value().session, a_item.data);
+		if (!l_response.has_value()) {
+			ctx.log_p(ss::log::NOTICE, "unable to generate challenge_response!");
+			return;
+		}
+		bool l_authenticated = authenticate(l_client_list_it->second.m_auth_username, l_pack.value(), l_response.value());
+		if (l_authenticated) {
+			ctx.log_p(ss::log::INFO, std::format("authenticated user {}", l_client_list_it->second.m_auth_username));
+			if (m_banner) {
+				ss::data l_banner;
+				l_banner.load_file(m_banner_file);
+				std::string l_string = l_banner.read_std_str(l_banner.size());
+				send_to_client(a_item.client_sockfd, l_string);
+			}
+			l_client_list_it->second.m_auth_state = auth_state::AUTH_STATE_LOGGED_ON;
+			return;
+		} else {
+			// not authenticated
+			send_to_client(a_item.client_sockfd, "unable to authenticate");
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			ctx.log_p(ss::log::INFO, std::format("unable to authenticate user {}", l_client_list_it->second.m_auth_username));
+			remove_client(a_item.client_sockfd);
+			return;
+		}
+	}
+
+	auto l_cmdv = split_command(a_item.data);
+	bool l_internal = (l_cmdv[0].at(0) == '/');
+	if (l_internal)
+		l_cmdv[0].erase(l_cmdv[0].begin()); // hack off forward slash
+	for (auto& c : l_cmdv[0]) // make uppercase
+		c = std::toupper(c);
+	if (!l_internal) {
+		external_command(a_item.client_sockfd, l_cmdv);
+		return;
+	}
+	
+	std::string l_user = l_client_list_it->second.m_auth_username;
+	if (l_cmdv[0] == "EXIT") {
+		// preform logoff
+		send_to_client(a_item.client_sockfd, "logging you off");
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		if (m_auth_policy >= 1 && l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON) {
+			ctx.log_p(ss::log::INFO, std::format("logging off user {}", l_user));
+			logout(l_user);
+		}
+		remove_client(a_item.client_sockfd);
+		return;
+	}
+	if (l_cmdv[0] == "WHOAMI") {
+		if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON) {
+			send_to_client(a_item.client_sockfd, std::format("you are: {}", l_user));
+			auto l_priv = priv_level(l_user);
+			send_to_client(a_item.client_sockfd, std::format("privilege level: {}", l_priv.value()));
+			auto l_last_login = last_login(l_user);
+			send_to_client(a_item.client_sockfd, std::format("last login: {}", l_last_login.value().iso8601_ms()));
+			auto l_last = last(l_user);
+			send_to_client(a_item.client_sockfd, std::format("last seen: {}", l_last.value().iso8601_ms()));
+			auto l_creation = creation(l_user);
+			send_to_client(a_item.client_sockfd, std::format("account creation: {}", l_creation.value().iso8601_ms()));
+			send_to_client(a_item.client_sockfd, std::format("connected on: {}", l_client_list_it->second.m_connect_time.iso8601_ms()));
+			send_to_client(a_item.client_sockfd, std::format("connected for {} seconds.", ss::doubletime::now_as_double() - double(l_client_list_it->second.m_connect_time)));
+		} else {
+			send_to_client(a_item.client_sockfd, "not logged in");
+		}
+		return;
+	}
+	
+	std::string l_response = std::format("command_server: internal command {} not recognized", l_cmdv[0]);
 	send_to_client(a_item.client_sockfd, l_response);
 }
 
