@@ -414,7 +414,12 @@ void command_server::process_command(command_work_item a_item)
 		return;
 	}
 	
-	std::string l_user = l_client_list_it->second.m_auth_username;
+	std::string l_user;
+	if (l_client_list_it->second.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON)
+		l_user = l_client_list_it->second.m_auth_username;
+	else
+		l_user = "(non)";
+
 	if (l_cmdv[0] == "EXIT") {
 		// preform logoff
 		send_to_client(a_item.client_sockfd, "[logging you off]");
