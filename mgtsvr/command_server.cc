@@ -150,6 +150,7 @@ void command_server::newly_accepted_client(int client_sockfd)
 			std::string l_string = l_banner.read_std_str(l_banner.size());
 			send_to_client(client_sockfd, l_string);
 		}
+		prompt(client_sockfd);
 	}
 }
 
