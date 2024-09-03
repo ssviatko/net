@@ -286,7 +286,7 @@ void command_server::prompt(int client_sockfd)
 		if (!(l_as == auth_state::AUTH_STATE_LOGGED_ON))
 			l_user = "(non)";
 		lock_client_output(client_sockfd);
-		send_to_client_atomic(client_sockfd, std::format("[{} {}]", m_category, ss::doubletime::now_as_iso8601_ms()));
+		send_to_client_atomic(client_sockfd, std::format("\n[{} {}]", m_category, ss::doubletime::now_as_iso8601_ms()));
 		send_to_client_atomic(client_sockfd, std::format("{}: please enter a command.", l_user));
 		unlock_client_output(client_sockfd);
 	}
@@ -473,17 +473,17 @@ bool command_server::process_command(command_work_item a_item)
 			ss::doubletime l_conn_time = l_client_list_it->second.m_connect_time;
 			RELEASE_CL
 			lock_client_output(a_item.client_sockfd);
-			send_to_client_atomic(a_item.client_sockfd, std::format("you are: {}", l_user));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}", pad("you are:", 20), l_user));
 			auto l_priv = priv_level(l_user);
-			send_to_client_atomic(a_item.client_sockfd, std::format("privilege level: {}", l_priv.value()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}", pad("privilege level:", 20), l_priv.value()));
 			auto l_last_login = last_login(l_user);
-			send_to_client_atomic(a_item.client_sockfd, std::format("last login: {}", l_last_login.value().iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}", pad("last login:", 20), l_last_login.value().iso8601_ms()));
 			auto l_last = last(l_user);
-			send_to_client_atomic(a_item.client_sockfd, std::format("last seen: {}", l_last.value().iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}", pad("last seen:", 20), l_last.value().iso8601_ms()));
 			auto l_creation = creation(l_user);
-			send_to_client_atomic(a_item.client_sockfd, std::format("account creation: {}", l_creation.value().iso8601_ms()));
-			send_to_client_atomic(a_item.client_sockfd, std::format("connected on: {}", l_conn_time.iso8601_ms()));
-			send_to_client_atomic(a_item.client_sockfd, std::format("connected for {} seconds.", ss::doubletime::now_as_double() - double(l_conn_time)));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}", pad("account creation:", 20), l_creation.value().iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}", pad("connected on:", 20), l_conn_time.iso8601_ms()));
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{} seconds.", pad("connected for:", 20), ss::doubletime::now_as_double() - double(l_conn_time)));
 			unlock_client_output(a_item.client_sockfd);
 		} else {
 			send_to_client(a_item.client_sockfd, "not logged in");
