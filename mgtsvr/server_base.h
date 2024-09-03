@@ -43,6 +43,7 @@ public:
 	virtual ~server_base();
 	virtual void shutdown();
 	bool request_down() { return m_request_down; }
+	bool request_hup() { return m_request_hup; }
 	virtual bool dispatch();
 	void setup_server_tcp();
 	void setup_server_un();
@@ -78,6 +79,7 @@ protected:
 	int m_auth_policy;
 	ss::doubletime m_uptime;
 	std::atomic<bool> m_request_down;
+	std::atomic<bool> m_request_hup;
 	
 	// server functions
 	void set_epollout_for_fd(int a_fd);

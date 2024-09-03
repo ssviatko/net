@@ -10,6 +10,8 @@ Internal commands:
 /HELP                  This screen
 /WHOAMI                Display information about logged-in user
 /USERS                 Display the user list of the system
+/WHO                   Display information about user connections
 /BROADCAST <message>   Send broadcast message to all users (requires priv_level -1 or less)
-/DOWN                  Down the server (requires priv_level -2 or less)
-/EXIT                  Log out of server
+/DOWN                  Down the server (requires priv_level -2)
+/HUP                   Simulate SIGHUP (reload the configuration and restart server - requires priv_level -2)
+/PART                  Log out of server

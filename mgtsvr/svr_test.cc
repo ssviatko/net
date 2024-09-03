@@ -48,6 +48,9 @@ int main(int argc, char **argv)
 			l_server->shutdown();
 			return 0;
 		}
+		if (l_server->request_hup()) {
+			hup();
+		}
 	}
 	
 	return 0;

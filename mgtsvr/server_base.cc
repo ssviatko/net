@@ -8,6 +8,7 @@ server_base::server_base(const std::string& a_category)
 , ss::ccl::dispatchable(a_category + "_iodispatch")
 , m_category(a_category)
 , m_request_down(false)
+, m_request_hup(false)
 {
 	ctx.log("server_base starting up..");
 	ss::icr& l_icr = ss::icr::get();
@@ -79,6 +80,11 @@ void server_base::shutdown()
 	close(m_epollfd);
 	close(m_server_sockfd);
 	close(m_server_sockfd_un);
+	// kick off remaining clients
+	m_client_list_mtx.lock();
+	for (auto& [key, value] : m_client_list)
+		close(key);
+	m_client_list_mtx.unlock();
 	ctx.log(std::format("server DOWN (up for {} seconds)", ss::doubletime::now_as_double() - double(m_uptime)));
 }
 

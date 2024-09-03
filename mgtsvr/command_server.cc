@@ -456,7 +456,7 @@ bool command_server::process_command(command_work_item a_item)
 		RELEASE_CL
 	}
 	
-	if (l_cmdv[0] == "EXIT") {
+	if (l_cmdv[0] == "PART") {
 		// preform logoff
 		send_to_client(a_item.client_sockfd, "[logging you off]");
 		send_to_client(a_item.client_sockfd, "disconnecting...");
@@ -512,6 +512,35 @@ bool command_server::process_command(command_work_item a_item)
 		unlock_client_output(a_item.client_sockfd);
 		return false;
 	}
+	if (l_cmdv[0] == "WHO") {
+		// show who is online, both users and nons
+		lock_client_output(a_item.client_sockfd);
+		send_to_client_atomic(a_item.client_sockfd, "fd  address                 username        connect time                       seconds online");
+		// client list is already locked by virtue of lock_client_output
+		for (auto& [key, value] : m_client_list) {
+			// is user online:
+			std::string l_online_username;
+			if (value.m_auth_state == auth_state::AUTH_STATE_NOAUTH) {
+				l_online_username = "(non)";
+			} else if (value.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON) {
+				l_online_username = value.m_auth_username;
+			} else {
+				// in the login roll
+				l_online_username = "(logging on)";
+			}
+			std::string l_cli = std::format("{}", key);
+			std::string l_cliaddr = "unknown";
+			if (value.m_family == AF_UNIX) {
+				l_cliaddr = un_str(&value.m_sockaddr_un);
+			} else if (value.m_family == AF_INET) {
+				l_cliaddr = ip_str(&value.m_sockaddr_in);
+			}
+			send_to_client_atomic(a_item.client_sockfd, std::format("{}{}{}{}{}", pad(l_cli, 4), pad(l_cliaddr, 24), pad(l_online_username, 16), pad(value.m_connect_time.iso8601_ms(), 35), ss::doubletime::now_as_double() - double(value.m_connect_time)));
+		}
+		send_to_client_atomic(a_item.client_sockfd, std::format("{} user connections.", m_client_list.size()));
+		unlock_client_output(a_item.client_sockfd);
+		return false;
+	}
 	if (l_cmdv[0] == "BROADCAST") {
 		// if auth_policy >= 2 check if user is -1 or less
 		auto l_priv_level = priv_level(l_user);
@@ -522,8 +551,11 @@ bool command_server::process_command(command_work_item a_item)
 		std::set<int> l_clients;
 		// grab list of connected clients
 		m_client_list_mtx.lock();
-		for (auto& [key, value] : m_client_list)
-			l_clients.insert(key);
+		for (auto& [key, value] : m_client_list) {
+			// ignore people who are in the login roll
+			if ((value.m_auth_state == auth_state::AUTH_STATE_NOAUTH) || (value.m_auth_state == auth_state::AUTH_STATE_LOGGED_ON))
+				l_clients.insert(key);
+		}
 		m_client_list_mtx.unlock();
 		// now remove ourselves
 		l_clients.erase(a_item.client_sockfd);
@@ -546,6 +578,17 @@ bool command_server::process_command(command_work_item a_item)
 		}
 		send_to_client(a_item.client_sockfd, "[command_server: requesting server DOWN]");
 		m_request_down = true;
+		return true;
+	}
+	if (l_cmdv[0] == "HUP") {
+		// if auth_policy >= 2 check if user is -2 or less
+		auto l_priv_level = priv_level(l_user);
+		if ((m_auth_policy >= 2) && (l_priv_level.value() > -2)) {
+			send_to_client(a_item.client_sockfd, std::format("[command_server: you do not have privileges to execute the command {}.", l_cmdv[0]));
+			return false;
+		}
+		send_to_client(a_item.client_sockfd, "[command_server: requesting server HANGUP]");
+		m_request_hup = true;
 		return true;
 	}
 	
