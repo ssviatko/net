@@ -132,7 +132,6 @@ void server_base::flushout(int client_sockfd)
 	std::lock_guard<std::mutex> l_guard(m_client_list_mtx);
 	// find our client record
 	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(client_sockfd);
-	std::lock_guard<std::mutex> l_guard2(*(l_client_list_it->second.m_out_circbuff_mtx));
 	int l_datalen = l_client_list_it->second.m_out_circbuff.size();
 	// write in chunks
 	int l_towrite = (l_datalen >(int)WRITE_CHUNK_SIZE) ? WRITE_CHUNK_SIZE : l_datalen;
@@ -210,7 +209,6 @@ int server_base::accept_client(int a_server_fd)
 	l_rec.m_auth_username = "";
 	l_rec.m_in_circbuff.set_circular_mode(true);
 	l_rec.m_out_circbuff.set_circular_mode(true);
-	l_rec.m_out_circbuff_mtx = std::make_shared<std::mutex>();
 	socklen_t client_len;
 	int client_sockfd = 0;
 	struct sockaddr_in client_address;

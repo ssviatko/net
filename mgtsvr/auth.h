@@ -6,6 +6,8 @@
 #include <optional>
 #include <memory>
 #include <filesystem>
+#include <thread>
+#include <mutex>
 
 #include "data.h"
 #include "doubletime.h"
@@ -78,6 +80,7 @@ public:
 protected:
 	role m_role;
 	std::map<std::string, user_rec> m_user_records;
+	std::mutex m_user_records_mtx;
 };
 
 } // namespace net

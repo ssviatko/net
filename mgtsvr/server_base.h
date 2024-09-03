@@ -71,8 +71,6 @@ protected:
 		ss::doubletime m_connect_time;
 		ss::data m_in_circbuff;
 		ss::data m_out_circbuff;
-		// mutexes are not copyable.. we will will do it this ugly way
-		std::shared_ptr<std::mutex> m_out_circbuff_mtx;
 	};
 
 	ss::log::ctx& ctx = ss::log::ctx::get();

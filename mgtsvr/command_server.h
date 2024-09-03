@@ -5,15 +5,29 @@
 #include <format>
 #include <vector>
 #include <set>
+#include <map>
 #include <optional>
 #include <thread>
 #include <mutex>
+#include <exception>
+#include <stdexcept>
 
 #include "auth.h"
 #include "icr.h"
 #include "server_base.h"
 #include "log.h"
 #include "ccl.h"
+
+#define ACQUIRE_CL(a_fd) \
+	m_client_list_mtx.lock(); \
+	std::map<int, client_rec>::iterator l_client_list_it = m_client_list.find(a_fd); \
+	if (l_client_list_it == this->m_client_list.end()) { \
+		m_client_list_mtx.unlock(); \
+		throw std::runtime_error("client logoff occurred while processing command."); \
+	}
+	
+#define RELEASE_CL \
+	m_client_list_mtx.unlock();
 
 namespace ss {
 namespace net {
@@ -54,7 +68,7 @@ protected:
 	unsigned int m_finish_sem;
 	void worker_thread(const std::string& a_logname);
 	std::vector<std::string> split_command(const std::string& a_command);
-	void process_command(command_work_item a_item);
+	bool process_command(command_work_item a_item);
 };
 
 } // namespace net

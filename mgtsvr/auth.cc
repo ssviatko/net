@@ -47,7 +47,9 @@ std::optional<challenge_pack> auth::challenge(const std::string a_username)
 	// server side only
 	if (m_role != role::SERVER)
 		return std::nullopt;
-		
+	
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, nullopt if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -94,6 +96,8 @@ bool auth::change_pw(const std::string& a_username, const std::string& a_old_pw_
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if this user already exists, return false if it's not there
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -128,6 +132,8 @@ bool auth::add_user(const std::string& a_username, const std::string& a_password
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if this user already exists, return false if it's already there
 	auto check_it = m_user_records.find(a_username);
 	if (check_it != m_user_records.end())
@@ -152,6 +158,8 @@ bool auth::delete_user(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if this user already exists, return false if it's not there
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -167,6 +175,8 @@ bool auth::set_priv_level(const std::string& a_username, int a_priv_level)
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if this user already exists, return false if it's not there
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -183,6 +193,8 @@ bool auth::authenticate(const std::string a_username, challenge_pack a_cpack, co
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -204,6 +216,8 @@ bool auth::logout(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -225,6 +239,8 @@ std::optional<bool> auth::logged_in(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return std::nullopt;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -239,6 +255,8 @@ std::optional<ss::doubletime> auth::last_login(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return std::nullopt;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -253,6 +271,8 @@ std::optional<ss::doubletime> auth::last(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return std::nullopt;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -267,6 +287,8 @@ std::optional<ss::doubletime> auth::creation(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return std::nullopt;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -281,6 +303,8 @@ std::optional<int> auth::priv_level(const std::string& a_username)
 	if (m_role != role::SERVER)
 		return std::nullopt;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// check if username exists, bail if not
 	auto check_it = m_user_records.find(a_username);
 	if (check_it == m_user_records.end())
@@ -299,6 +323,8 @@ bool auth::load_authdb(const std::string& a_filename)
 	if (!std::filesystem::exists(a_filename))
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	ss::data l_load;
 	l_load.load_file(a_filename.c_str());
 	std::string l_work = l_load.read_std_str(l_load.size());
@@ -357,6 +383,8 @@ bool auth::save_authdb(const std::string& a_filename)
 	if (m_role != role::SERVER)
 		return false;
 		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
 	// if DB is empty, do nothing
 	if (m_user_records.size() == 0)
 		return false;
