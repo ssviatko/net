@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <utility>
 
 namespace ss {
 
@@ -98,6 +99,7 @@ class esr_object : public esr_container<object_cont> {
 public:
 	esr_object(const std::string& a_name);
 	virtual ~esr_object();
+	void add(esr_base_ptr a_item);
 };
 
 class esr_array : public esr_container<array_cont> {
@@ -125,9 +127,19 @@ public:
 	esr();
 	virtual ~esr();
 	
+	template <typename T, typename V>
+	std::shared_ptr<T> new_value(const std::string& a_name, V a_value);
+	
 protected:
 	esr_object_ptr m_root;
 };
+
+template <typename T, typename V>
+std::shared_ptr<T> esr::new_value(const std::string& a_name, V a_value)
+{
+	std::shared_ptr<T> l_ret = std::make_shared<T>(a_name, a_value);
+	return l_ret;
+}
 
 } // namespace ss
 

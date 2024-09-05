@@ -64,6 +64,14 @@ esr_object::~esr_object()
 	
 }
 
+void esr_object::add(esr_base_ptr a_item)
+{
+	// check if item with the same name is already in here, throw exception if it is
+	
+	// add the item
+	container.insert(std::pair<std::string, esr_base_ptr>(a_item->name, a_item));
+}
+
 esr_array::esr_array(const std::string& a_name)
 : esr_container<array_cont>(a_name, esr_item_type::ARRAY)
 {
@@ -86,8 +94,12 @@ esr_boolean_ptr as_boolean(esr_base_ptr a_item) { return std::dynamic_pointer_ca
 esr::esr()
 {
 	m_root = std::make_shared<esr_object>("root");
-	esr_string_ptr l_test_str = std::make_shared<esr_string>("test", "this is a test");
-	m_root->container.insert(std::pair<std::string, esr_base_ptr>("test", l_test_str));
+	esr_string_ptr l_build_number_str = new_value<esr_string, std::string>("build_number", BUILD_NUMBER);
+	esr_string_ptr l_build_date_str = new_value<esr_string, std::string>("build_date", BUILD_DATE);
+	esr_string_ptr l_release_number_str = new_value<esr_string, std::string>("release_number", RELEASE_NUMBER);
+	m_root->add(l_build_number_str);
+	m_root->add(l_build_date_str);
+	m_root->add(l_release_number_str);
 }
 
 esr::~esr()
