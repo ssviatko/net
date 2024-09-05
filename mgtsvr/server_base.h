@@ -28,6 +28,7 @@
 
 #include "icr.h"
 #include "auth.h"
+#include "esr.h"
 #include "log.h"
 #include "doubletime.h"
 #include "dispatchable.h"
@@ -37,6 +38,7 @@ namespace net {
 
 class server_base
 : public ss::net::auth
+, public ss::esr
 , public ss::ccl::dispatchable {
 public:
 	server_base(const std::string& a_category);

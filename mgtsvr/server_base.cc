@@ -5,6 +5,7 @@ namespace net {
 
 server_base::server_base(const std::string& a_category)
 : ss::net::auth(ss::net::auth::role::SERVER)
+, ss::esr()
 , ss::ccl::dispatchable(a_category + "_iodispatch")
 , m_category(a_category)
 , m_request_down(false)
