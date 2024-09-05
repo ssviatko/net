@@ -94,12 +94,9 @@ esr_boolean_ptr as_boolean(esr_base_ptr a_item) { return std::dynamic_pointer_ca
 esr::esr()
 {
 	m_root = std::make_shared<esr_object>("root");
-	esr_string_ptr l_build_number_str = new_value<esr_string, std::string>("build_number", BUILD_NUMBER);
-	esr_string_ptr l_build_date_str = new_value<esr_string, std::string>("build_date", BUILD_DATE);
-	esr_string_ptr l_release_number_str = new_value<esr_string, std::string>("release_number", RELEASE_NUMBER);
-	m_root->add(l_build_number_str);
-	m_root->add(l_build_date_str);
-	m_root->add(l_release_number_str);
+	m_root->add(new_value<esr_string, std::string>("build_number", BUILD_NUMBER));
+	m_root->add(new_value<esr_string, std::string>("build_date", BUILD_DATE));
+	m_root->add(new_value<esr_string, std::string>("release_number", RELEASE_NUMBER));
 }
 
 esr::~esr()
