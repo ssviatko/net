@@ -8,9 +8,9 @@
 #include "data.h"
 
 struct option g_options[] = {
-	{ "phrase", required_argument, NULL, 'p' },
+	{ "passphrase", required_argument, NULL, 'p' },
 	{ "pin", required_argument, NULL, 'n' },
-	{ "many", required_argument, NULL, 'm' },
+	{ "many", no_argument, NULL, 'm' },
 	{ NULL, 0, NULL, 0 }
 };
 

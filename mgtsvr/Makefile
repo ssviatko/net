@@ -58,6 +58,7 @@ clean:
 	rm -f $(AUTH_TARGET)
 	rm -f $(PWGEN_TARGET)
 	rm -f $(CRGEN_TARGET)
+	rm -f $(LOGONGEN_TARGET)
 	rm -f $(SVR_TEST_TARGET)
 	
 	
