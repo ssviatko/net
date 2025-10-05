@@ -64,6 +64,7 @@ public:
 	bool change_pw_plaintext_pw(const std::string& a_username, const std::string& a_old_pw, const std::string& a_new_pw);
 	std::optional<challenge_pack> challenge(const std::string a_username);
 	bool authenticate(const std::string a_username, challenge_pack a_cpack, const std::string& a_response);
+	bool force_authenticate(const std::string a_username); // just log the user in, no password check
 	bool logout(const std::string& a_username);
 	bool set_priv_level(const std::string& a_username, int a_priv_level);
 	std::optional<bool> logged_in(const std::string& a_username);

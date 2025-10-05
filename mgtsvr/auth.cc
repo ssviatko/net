@@ -210,6 +210,24 @@ bool auth::authenticate(const std::string a_username, challenge_pack a_cpack, co
 	return true;
 }
 
+bool auth::force_authenticate(const std::string a_username)
+{
+	if (m_role != role::SERVER)
+		return false;
+		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
+	// check if username exists, bail if not
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+		
+	// success! log user in.
+	check_it->second.logged_in = true;
+	check_it->second.last_login = ss::doubletime();
+	return true;
+}
+
 bool auth::logout(const std::string& a_username)
 {
 	// this only works in SERVER mode
