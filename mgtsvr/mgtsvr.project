@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Project Name="mgtsvr" Version="11000" InternalType="">
   <VirtualDirectory Name="mgtsvr">
+    <File Name="autil.cc"/>
+    <File Name="cpackgen.cc"/>
     <File Name="esr.cc"/>
     <File Name="esr.h"/>
     <File Name="help.txt"/>

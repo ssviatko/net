@@ -13,6 +13,8 @@ LDFLAGS = -Wl,-rpath,../../ss2x/libss2x -L../../ss2x/libss2x -lpthread -lncurses
 
 AUTH_OBJS = auth.o auth_test.o
 AUTH_TARGET = auth_test
+AUTIL_OBJS = auth.o autil.o
+AUTIL_TARGET = autil
 PWGEN_OBJS = auth.o pwgen.o
 PWGEN_TARGET = pwgen
 LOGONGEN_OBJS = logongen.o
@@ -24,7 +26,7 @@ CPACKGEN_TARGET = cpackgen
 SVR_TEST_OBJS = auth.o esr.o server_base.o command_server.o fortune_server.o svr_test.o
 SVR_TEST_TARGET = svr_test
 
-all: $(AUTH_TARGET) $(PWGEN_TARGET) $(LOGONGEN_TARGET) $(CRGEN_TARGET) $(CPACKGEN_TARGET) $(SVR_TEST_TARGET)
+all: $(AUTH_TARGET) $(PWGEN_TARGET) $(LOGONGEN_TARGET) $(CRGEN_TARGET) $(CPACKGEN_TARGET) $(SVR_TEST_TARGET) $(AUTIL_TARGET)
 
 $(AUTH_TARGET): $(AUTH_OBJS)
 
@@ -32,6 +34,10 @@ $(AUTH_TARGET): $(AUTH_OBJS)
 	@echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)) > $(BUILD_NUMBER_FILE)
 	$(LD) $(AUTH_OBJS) -o $(AUTH_TARGET) $(LDFLAGS)
 
+$(AUTIL_TARGET): $(AUTIL_OBJS)
+
+	$(LD) $(AUTIL_OBJS) -o $(AUTIL_TARGET) $(LDFLAGS)
+	
 $(PWGEN_TARGET): $(PWGEN_OBJS)
 
 	$(LD) $(PWGEN_OBJS) -o $(PWGEN_TARGET) $(LDFLAGS)
@@ -66,6 +72,6 @@ clean:
 	rm -f $(CRGEN_TARGET)
 	rm -f $(LOGONGEN_TARGET)
 	rm -f $(SVR_TEST_TARGET)
-	
+	rm -f $(AUTIL_TARGET)
 	
 	
