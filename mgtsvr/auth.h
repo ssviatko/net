@@ -62,9 +62,12 @@ public:
 	// WARNING: Do not use change_pw variants over the wire, exposing the PW hash will make system vulnerable to a replay attack
 	bool change_pw(const std::string& a_username, const std::string& a_old_pw_hash, const std::string& a_new_pw_hash);
 	bool change_pw_plaintext_pw(const std::string& a_username, const std::string& a_old_pw, const std::string& a_new_pw);
+	// skip checking of old password: used by autil
+	bool force_change_pw(const std::string& a_username, const std::string& a_new_pw_hash);
+	bool force_change_pw_plaintext_pw(const std::string& a_username, const std::string& a_new_pw);
 	std::optional<challenge_pack> challenge(const std::string a_username);
 	bool authenticate(const std::string a_username, challenge_pack a_cpack, const std::string& a_response);
-	bool force_authenticate(const std::string a_username); // just log the user in, no password check
+	bool force_authenticate(const std::string a_username); // just log the user in, no password check, used by autil
 	bool logout(const std::string& a_username);
 	bool set_priv_level(const std::string& a_username, int a_priv_level);
 	std::optional<bool> logged_in(const std::string& a_username);
@@ -75,6 +78,7 @@ public:
 	// WARNING: In spite of being in JSON format, auth DB is not user editable!
 	// doing so is not only a violation of security policies, but could also result in a syntactical error in the JSON
 	// file which will result in exceptions or even segfaults when loading.
+	// TO EDIT CONTENTS of JSON auth DB, use the autil program supplied.
 	bool load_authdb(const std::string& a_filename);
 	bool save_authdb(const std::string& a_filename);
 	

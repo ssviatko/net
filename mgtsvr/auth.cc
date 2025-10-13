@@ -90,6 +90,20 @@ bool auth::change_pw_plaintext_pw(const std::string& a_username, const std::stri
 	return change_pw(a_username, generate_hash(a_old_pw), generate_hash(a_new_pw));
 }
 
+bool auth::force_change_pw_plaintext_pw(const std::string& a_username, const std::string& a_new_pw)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	// check if this user already exists, return false if it's not there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+	
+	return force_change_pw(a_username, generate_hash(a_new_pw));
+}
+
 bool auth::change_pw(const std::string& a_username, const std::string& a_old_pw_hash, const std::string& a_new_pw_hash)
 {
 	// this only works in SERVER mode
@@ -109,6 +123,23 @@ bool auth::change_pw(const std::string& a_username, const std::string& a_old_pw_
 		return true;
 	}
 	return false;
+}
+
+bool auth::force_change_pw(const std::string& a_username, const std::string& a_new_pw_hash)
+{
+	// this only works in SERVER mode
+	if (m_role != role::SERVER)
+		return false;
+		
+	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
+	
+	// check if this user already exists, return false if it's not there
+	auto check_it = m_user_records.find(a_username);
+	if (check_it == m_user_records.end())
+		return false;
+	
+	check_it->second.password_hash = a_new_pw_hash;
+	return true;
 }
 
 bool auth::add_user_plaintext_pw(const std::string& a_username, const std::string& a_password)

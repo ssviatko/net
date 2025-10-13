@@ -23,6 +23,7 @@ public:
 	void cmd_adduser(std::string a_authdb, std::string a_username, std::string a_passphrase, int a_privilege);
 	void cmd_deluser(std::string a_authdb, std::string a_username);
 	void cmd_setpriv(std::string a_authdb, std::string a_username, int a_privilege);
+	void cmd_setpp(std::string a_authdb, std::string a_username, std::string a_passphrase);
 	std::string pad(const std::string& a_string, std::size_t a_len);
 };
 
@@ -173,6 +174,27 @@ void util_auth::cmd_setpriv(std::string a_authdb, std::string a_username, int a_
 	}	
 }
 
+void util_auth::cmd_setpp(std::string a_authdb, std::string a_username, std::string a_passphrase)
+{
+	bool l_load = load_authdb(a_authdb);
+	if (!l_load) {
+		std::cout << g_color_highlight << "setpp:" << g_color_error << " unable to open auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	bool l_set = force_change_pw_plaintext_pw(a_username, a_passphrase);
+	if (!l_set) {
+		std::cout << g_color_highlight << "setpp:" << g_color_error << " unable to set passphrase for user: " << g_color_heading << a_username << g_color_error << " (user does not exist)" << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	bool l_save = save_authdb(a_authdb);
+	if (!l_save) {
+		std::cout << g_color_highlight << "setpp:" << g_color_error << " unable to save auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	} else {
+		std::cout << g_color_highlight << "setpp:" << g_color_default << " success, wrote auth DB: " << g_color_heading << a_authdb << g_color_default << std::endl;
+	}	
+}
+
 void kill_color()
 {
 	g_color_highlight = "";
@@ -192,6 +214,7 @@ struct option g_options[] = {
 	{ "privilege", required_argument, NULL, 'v' },
 	{ "deluser", required_argument, NULL, 'd' },
 	{ "setpriv", required_argument, NULL, 1001 },
+	{ "setpp", required_argument, NULL, 1002 },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -211,6 +234,8 @@ int main(int argc, char **argv)
 		std::cout << g_color_heading << "  -d (--deluser) <auth_db>" << g_color_default << " delete user specified by " << g_color_heading << "-u" << std::endl;
 		std::cout << g_color_heading << "     (--setpriv) <auth_db>" << g_color_default << " set privileges for user specified by " << g_color_heading << "-u" << g_color_default;
 			std::cout << " and mandatory privilege level " << g_color_heading << "-v" << g_color_default << std::endl;
+		std::cout << g_color_heading << "     (--setpp) <auth_db>" << g_color_default << " set passphrase for user specified by " << g_color_heading << "-u" << g_color_default;
+			std::cout << " and passphrase " << g_color_heading << "-p" << g_color_default << std::endl;
 		std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
 		std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
 		std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
@@ -222,6 +247,7 @@ int main(int argc, char **argv)
 		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and default privilege level (0) to mydb" << std::endl;
 		std::cout << g_color_heading << "  autil -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
 		std::cout << g_color_heading << "  autil -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
+		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" --setpp mydb" << g_color_default << " set nobody's passphrase to \"foo foo\" on mydb" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	
@@ -276,6 +302,22 @@ int main(int argc, char **argv)
 			std::cout << " for user " << g_color_heading << l_username << g_color_default;
 			std::cout << " on auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
 			l_auth_svr.cmd_setpriv(l_authdbname, l_username, l_privilege);
+		}
+			break;
+		case 1002:
+		{
+			l_authdbname = std::string(optarg);
+			if (!l_username_specified) {
+				std::cout << g_color_highlight << "setpp:" << g_color_error << " must specify a user name to change passphrase." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);				
+			}
+			if (!l_passphrase_specified) {
+				std::cout << g_color_highlight << "setpp:" << g_color_error << " must specify new passphrase for this user." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);				
+			}
+			std::cout << g_color_highlight << "setpp:" << g_color_default << " attempting to change passphrase for user " << g_color_heading << l_username << g_color_default;
+			std::cout << " on auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
+			l_auth_svr.cmd_setpp(l_authdbname, l_username, l_passphrase);
 		}
 			break;
 		case 'c':
