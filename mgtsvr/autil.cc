@@ -277,6 +277,7 @@ enum {
 };
 
 struct option g_options[] = {
+	{ "help", no_argument, NULL, '?' },
 	{ "list", required_argument, NULL, 'l' },
 	{ "create", required_argument, NULL, 'c' },
 	{ "user", required_argument, NULL, 'u' },
@@ -300,54 +301,60 @@ struct option g_options[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
+void usage()
+{
+	std::cout << g_color_highlight << "autil" << g_color_heading << " - Authorization Utility for managing JSON ss::net::auth databases" << g_color_default << std::endl;
+	std::cout << g_color_heading << "Release number " << g_color_default << RELEASE_NUMBER << g_color_heading << " Build number " << g_color_default << BUILD_NUMBER << g_color_heading << " Built on " << g_color_default << BUILD_DATE << std::endl;
+	std::cout << g_color_highlight << "usage:" << g_color_default << " autil " << g_color_heading << "(options)" << g_color_default << std::endl;
+	std::cout << g_color_heading << "  -u (--user) <username>" << g_color_default << " Specify user name" << std::endl;
+	std::cout << g_color_heading << "  -p (--passphrase) <phrase>" << g_color_default << " Specify passphrase" << std::endl;
+	std::cout << g_color_heading << "  -h (--passphrasehash) <hash>" << g_color_default << " Specify passphrase hash" << std::endl;
+	std::cout << g_color_heading << "  -v (--privilege) <privilege>" << g_color_default << " Specify privilege level" << std::endl;
+	std::cout << g_color_heading << "  -c (--create) <auth_db>" << g_color_default << " Create new auth DB with default users" << std::endl;
+	std::cout << g_color_heading << "  -l (--list) <auth_db>" << g_color_default << " Show user info in auth DB" << std::endl;
+	std::cout << g_color_heading << "  -o (--loginout) <auth_db>" << g_color_default << " Log user specified by " << g_color_heading << "-u" << g_color_default << " in and out" << std::endl;
+	std::cout << g_color_heading << "  -a (--adduser) <auth_db>" << g_color_default << " Add new user specified by " << g_color_heading << "-u" << g_color_default;
+		std::cout << " with passphrase specified by " << g_color_heading << "-p" << g_color_default << " and optional privilege level " << g_color_heading << "-v" << g_color_default;
+		std::cout << " (default 0)" << std::endl;
+	std::cout << g_color_heading << "     (--adduserhash) <auth_db>" << g_color_default << " Add new user specified by " << g_color_heading << "-u" << g_color_default;
+		std::cout << " with passphrase hash specified by " << g_color_heading << "-h" << g_color_default << " and optional privilege level " << g_color_heading << "-v" << g_color_default;
+		std::cout << " (default 0)" << std::endl;
+	std::cout << g_color_heading << "  -d (--deluser) <auth_db>" << g_color_default << " delete user specified by " << g_color_heading << "-u" << std::endl;
+	std::cout << g_color_heading << "     (--setpriv) <auth_db>" << g_color_default << " set privileges for user specified by " << g_color_heading << "-u" << g_color_default;
+		std::cout << " and mandatory privilege level " << g_color_heading << "-v" << g_color_default << std::endl;
+	std::cout << g_color_heading << "     (--setpp) <auth_db>" << g_color_default << " set passphrase for user specified by " << g_color_heading << "-u" << g_color_default;
+		std::cout << " and passphrase " << g_color_heading << "-p" << g_color_default << std::endl;
+	std::cout << g_color_heading << "     (--setph) <auth_db>" << g_color_default << " set passphrase hash for user specified by " << g_color_heading << "-u" << g_color_default;
+		std::cout << " and passphrase hash " << g_color_heading << "-h" << g_color_default << std::endl;
+	std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
+	std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
+	std::cout << g_color_heading << "  -s (--session)" << g_color_default << " specify session hash for challenge reponse" << std::endl;
+	std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
+	std::cout << g_color_heading << "     (--cpackgen) <auth_db>" << g_color_default << " generate challenge pack for user specified by " << g_color_heading << "-u" << g_color_default << " on auth_db" << std::endl;
+	std::cout << g_color_heading << "     (--crgen)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
+		std::cout << " and passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
+	std::cout << g_color_heading << "     (--crgenhash)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
+		std::cout << " and passphrase hash specified by " << g_color_heading << "-h" << g_color_default << std::endl;
+	std::cout << g_color_heading << "  -? (--help)" << g_color_default << " show this help/usage screen" << std::endl;
+	std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
+	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 bytes in length or the program will complain." << std::endl;
+	std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
+	std::cout << g_color_heading << "  autil -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -l mydb" << g_color_default << " list contents of DB named mydb" << std::endl;
+	std::cout << g_color_heading << "  autil --nocolor -l mydb" << g_color_default << " list contents of DB named mydb with no colors (for use with awk and other tools)" << std::endl;
+	std::cout << g_color_heading << "  autil -u nobody -o mydb" << g_color_default << " login/out user nobody on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -v 2 -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and privilege level 2 to mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and default privilege level (0) to mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" --setpp mydb" << g_color_default << " set nobody's passphrase to \"foo foo\" on mydb" << std::endl;
+	exit(EXIT_FAILURE);
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 1) {
-		std::cout << g_color_highlight << "autil" << g_color_heading << " - Authorization Utility for managing JSON ss::net::auth databases" << g_color_default << std::endl;
-		std::cout << g_color_heading << "Release number " << g_color_default << RELEASE_NUMBER << g_color_heading << " Build number " << g_color_default << BUILD_NUMBER << g_color_heading << " Built on " << g_color_default << BUILD_DATE << std::endl;
-		std::cout << g_color_highlight << "usage:" << g_color_default << " autil " << g_color_heading << "(options)" << g_color_default << std::endl;
-		std::cout << g_color_heading << "  -u (--user) <username>" << g_color_default << " Specify user name" << std::endl;
-		std::cout << g_color_heading << "  -p (--passphrase) <phrase>" << g_color_default << " Specify passphrase" << std::endl;
-		std::cout << g_color_heading << "  -h (--passphrasehash) <hash>" << g_color_default << " Specify passphrase hash" << std::endl;
-		std::cout << g_color_heading << "  -v (--privilege) <privilege>" << g_color_default << " Specify privilege level" << std::endl;
-		std::cout << g_color_heading << "  -c (--create) <auth_db>" << g_color_default << " Create new auth DB with default users" << std::endl;
-		std::cout << g_color_heading << "  -l (--list) <auth_db>" << g_color_default << " Show user info in auth DB" << std::endl;
-		std::cout << g_color_heading << "  -o (--loginout) <auth_db>" << g_color_default << " Log user specified by " << g_color_heading << "-u" << g_color_default << " in and out" << std::endl;
-		std::cout << g_color_heading << "  -a (--adduser) <auth_db>" << g_color_default << " Add new user specified by " << g_color_heading << "-u" << g_color_default;
-			std::cout << " with passphrase specified by " << g_color_heading << "-p" << g_color_default << " and optional privilege level " << g_color_heading << "-v" << g_color_default;
-			std::cout << " (default 0)" << std::endl;
-		std::cout << g_color_heading << "     (--adduserhash) <auth_db>" << g_color_default << " Add new user specified by " << g_color_heading << "-u" << g_color_default;
-			std::cout << " with passphrase hash specified by " << g_color_heading << "-h" << g_color_default << " and optional privilege level " << g_color_heading << "-v" << g_color_default;
-			std::cout << " (default 0)" << std::endl;
-		std::cout << g_color_heading << "  -d (--deluser) <auth_db>" << g_color_default << " delete user specified by " << g_color_heading << "-u" << std::endl;
-		std::cout << g_color_heading << "     (--setpriv) <auth_db>" << g_color_default << " set privileges for user specified by " << g_color_heading << "-u" << g_color_default;
-			std::cout << " and mandatory privilege level " << g_color_heading << "-v" << g_color_default << std::endl;
-		std::cout << g_color_heading << "     (--setpp) <auth_db>" << g_color_default << " set passphrase for user specified by " << g_color_heading << "-u" << g_color_default;
-			std::cout << " and passphrase " << g_color_heading << "-p" << g_color_default << std::endl;
-		std::cout << g_color_heading << "     (--setph) <auth_db>" << g_color_default << " set passphrase hash for user specified by " << g_color_heading << "-u" << g_color_default;
-			std::cout << " and passphrase hash " << g_color_heading << "-h" << g_color_default << std::endl;
-		std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
-		std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
-		std::cout << g_color_heading << "  -s (--session)" << g_color_default << " specify session hash for challenge reponse" << std::endl;
-		std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
-		std::cout << g_color_heading << "     (--cpackgen) <auth_db>" << g_color_default << " generate challenge pack for user specified by " << g_color_heading << "-u" << g_color_default << " on auth_db" << std::endl;
-		std::cout << g_color_heading << "     (--crgen)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
-			std::cout << " and passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
-		std::cout << g_color_heading << "     (--crgenhash)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
-			std::cout << " and passphrase hash specified by " << g_color_heading << "-h" << g_color_default << std::endl;
-		std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
-		std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 bytes in length or the program will complain." << std::endl;
-		std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
-		std::cout << g_color_heading << "  autil -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
-		std::cout << g_color_heading << "  autil -l mydb" << g_color_default << " list contents of DB named mydb" << std::endl;
-		std::cout << g_color_heading << "  autil --nocolor -l mydb" << g_color_default << " list contents of DB named mydb with no colors (for use with awk and other tools)" << std::endl;
-		std::cout << g_color_heading << "  autil -u nobody -o mydb" << g_color_default << " login/out user nobody on mydb" << std::endl;
-		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -v 2 -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and privilege level 2 to mydb" << std::endl;
-		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and default privilege level (0) to mydb" << std::endl;
-		std::cout << g_color_heading << "  autil -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
-		std::cout << g_color_heading << "  autil -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
-		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" --setpp mydb" << g_color_default << " set nobody's passphrase to \"foo foo\" on mydb" << std::endl;
-		exit(EXIT_FAILURE);
+		usage();
 	}
 	
 	std::string l_authdbname;
@@ -366,8 +373,13 @@ int main(int argc, char **argv)
 	bool l_passphrasehash_specified = false;
 	
 	int opt;
-	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:s:h:", g_options, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:s:h:?", g_options, NULL)) != -1) {
 		switch (opt) {
+		case '?':
+		{
+			usage();
+		}
+			break;
 		case OPT_NOCOLOR:
 		{
 			kill_color();
