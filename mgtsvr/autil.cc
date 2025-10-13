@@ -20,7 +20,7 @@ class util_auth : public ss::net::auth {
 public:
 	util_auth(ss::net::auth::role a_role) : auth(a_role) { };
 	virtual ~util_auth() { }
-	void cmd_list(std::string& a_authdb, bool a_listpp);
+	void cmd_list(std::string& a_authdb, bool a_listph);
 	void cmd_create(std::string& a_authdb);
 	void cmd_loginout(std::string& a_authdb, std::string& a_username);
 	void cmd_adduser(std::string a_authdb, std::string a_username, std::string a_passphrase, int a_privilege);
@@ -39,7 +39,7 @@ std::string util_auth::pad(const std::string& a_string, std::size_t a_len)
 	return l_ret.substr(0, a_len);
 }
 
-void util_auth::cmd_list(std::string& a_authdb, bool a_listpp)
+void util_auth::cmd_list(std::string& a_authdb, bool a_listph)
 {
 	bool l_load = load_authdb(a_authdb);
 	if (!l_load) {
@@ -47,13 +47,13 @@ void util_auth::cmd_list(std::string& a_authdb, bool a_listpp)
 		exit(EXIT_FAILURE);
 	}
 	std::cout << g_color_heading << "username        priv last seen                        creation date                    ";
-	if (a_listpp) {
+	if (a_listph) {
 		std::cout << "passphrase hash";
 	}
 	std::cout << g_color_default << std::endl;
 	for (auto& [key, value] : m_user_records) {
 		std::cout << std::format("{}{}{}{}", pad(key, 16), pad(std::format("{}", value.priv_level), 5), (double(value.last) == 0.0) ? "never                            " : pad(value.last.iso8601_ms(), 33), pad(value.creation.iso8601_ms(), 33));
-		if (a_listpp) {
+		if (a_listph) {
 			std::cout << value.password_hash;
 		}
 		std::cout << std::endl;
@@ -218,9 +218,10 @@ enum {
 	OPT_NOCOLOR = 1000,
 	OPT_SETPRIV,
 	OPT_SETPP,
-	OPT_LISTPP,
+	OPT_LISTPH,
 	OPT_CPACKGEN,
-	OPT_CRGEN
+	OPT_CRGEN,
+	OPT_PHGEN
 };
 
 struct option g_options[] = {
@@ -235,10 +236,11 @@ struct option g_options[] = {
 	{ "deluser", required_argument, NULL, 'd' },
 	{ "setpriv", required_argument, NULL, OPT_SETPRIV },
 	{ "setpp", required_argument, NULL, OPT_SETPP },
-	{ "listpp", no_argument, NULL, OPT_LISTPP },
+	{ "listph", no_argument, NULL, OPT_LISTPH },
 	{ "cpackgen", required_argument, NULL, OPT_CPACKGEN },
 	{ "crgen", no_argument, NULL, OPT_CRGEN },
 	{ "session", required_argument, NULL, 's' },
+	{ "phgen", no_argument, NULL, OPT_PHGEN },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -263,8 +265,9 @@ int main(int argc, char **argv)
 		std::cout << g_color_heading << "     (--setpp) <auth_db>" << g_color_default << " set passphrase for user specified by " << g_color_heading << "-u" << g_color_default;
 			std::cout << " and passphrase " << g_color_heading << "-p" << g_color_default << std::endl;
 		std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
-		std::cout << g_color_heading << "     (--listpp)" << g_color_default << " show passprase in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
+		std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
 		std::cout << g_color_heading << "  -s (--session)" << g_color_default << " specify session hash for challenge reponse" << std::endl;
+		std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
 		std::cout << g_color_heading << "     (--cpackgen) <auth_db>" << g_color_default << " generate challenge pack for user specified by " << g_color_heading << "-u" << g_color_default << " on auth_db" << std::endl;
 		std::cout << g_color_heading << "     (--crgen)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
 			std::cout << " and passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
@@ -291,7 +294,7 @@ int main(int argc, char **argv)
 	bool l_passphrase_specified = false;
 	int l_privilege = 0;
 	bool l_privilege_specified = false;
-	bool l_listpp = false;
+	bool l_listph = false;
 	std::string l_session;
 	bool l_session_specified = false;
 	
@@ -313,6 +316,17 @@ int main(int argc, char **argv)
 		{
 			l_passphrase = std::string(optarg);
 			l_passphrase_specified = true;
+		}
+			break;
+		case OPT_PHGEN:
+		{
+			if (!l_passphrase_specified) {
+				std::cout << g_color_highlight << "phgen:" << g_color_error << " must specify a passphrase to generate passphrase hash." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);				
+			}
+			std::string l_ph = l_auth_cli.generate_hash(l_passphrase);
+			std::cout << g_color_highlight << "phgen:" << g_color_default << " generating passphrase hash based of provided passphrase." << std::endl;
+			std::cout << g_color_highlight << "passphrase hash  : " << g_color_default << l_ph << std::endl;
 		}
 			break;
 		case 'v':
@@ -441,16 +455,16 @@ int main(int argc, char **argv)
 			l_auth_svr.cmd_deluser(l_authdbname, l_username);
 		}
 			break;
-		case OPT_LISTPP:
+		case OPT_LISTPH:
 		{
-			l_listpp = true;
+			l_listph = true;
 		}
 			break;
 		case 'l':
 		{
 			l_authdbname = std::string(optarg);
-			std::cout << "attempting to list auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
-			l_auth_svr.cmd_list(l_authdbname, l_listpp);
+			std::cout << g_color_highlight << "list:" << g_color_default << " attempting to list auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
+			l_auth_svr.cmd_list(l_authdbname, l_listph);
 		}
 			break;
 		case 'o':
