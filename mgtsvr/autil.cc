@@ -337,7 +337,7 @@ void usage()
 		std::cout << " and passphrase hash specified by " << g_color_heading << "-h" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  -? (--help)" << g_color_default << " show this help/usage screen" << std::endl;
 	std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
-	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 bytes in length or the program will complain." << std::endl;
+	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 characters in length or the program will complain." << std::endl;
 	std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  autil -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
 	std::cout << g_color_heading << "  autil -l mydb" << g_color_default << " list contents of DB named mydb" << std::endl;
