@@ -21,6 +21,8 @@ public:
 	void cmd_create(std::string& a_authdb);
 	void cmd_loginout(std::string& a_authdb, std::string& a_username);
 	void cmd_adduser(std::string a_authdb, std::string a_username, std::string a_passphrase, int a_privilege);
+	void cmd_deluser(std::string a_authdb, std::string a_username);
+	void cmd_setpriv(std::string a_authdb, std::string a_username, int a_privilege);
 	std::string pad(const std::string& a_string, std::size_t a_len);
 };
 
@@ -129,6 +131,48 @@ void util_auth::cmd_adduser(std::string a_authdb, std::string a_username, std::s
 	}	
 }
 
+void util_auth::cmd_deluser(std::string a_authdb, std::string a_username)
+{
+	bool l_load = load_authdb(a_authdb);
+	if (!l_load) {
+		std::cout << g_color_highlight << "deluser:" << g_color_error << " unable to open auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	bool l_del = delete_user(a_username);
+	if (!l_del) {
+		std::cout << g_color_highlight << "deluser:" << g_color_error << " unable to delete user: " << g_color_heading << a_username << g_color_error << " (user does not exist)" << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	bool l_save = save_authdb(a_authdb);
+	if (!l_save) {
+		std::cout << g_color_highlight << "deluser:" << g_color_error << " unable to save auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	} else {
+		std::cout << g_color_highlight << "deluser:" << g_color_default << " success, wrote auth DB: " << g_color_heading << a_authdb << g_color_default << std::endl;
+	}	
+}
+
+void util_auth::cmd_setpriv(std::string a_authdb, std::string a_username, int a_privilege)
+{
+	bool l_load = load_authdb(a_authdb);
+	if (!l_load) {
+		std::cout << g_color_highlight << "setpriv:" << g_color_error << " unable to open auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	bool l_set = set_priv_level(a_username, a_privilege);
+	if (!l_set) {
+		std::cout << g_color_highlight << "setpriv:" << g_color_error << " unable to set privileges for user: " << g_color_heading << a_username << g_color_error << " (user does not exist)" << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	bool l_save = save_authdb(a_authdb);
+	if (!l_save) {
+		std::cout << g_color_highlight << "setpriv:" << g_color_error << " unable to save auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	} else {
+		std::cout << g_color_highlight << "setpriv:" << g_color_default << " success, wrote auth DB: " << g_color_heading << a_authdb << g_color_default << std::endl;
+	}	
+}
+
 void kill_color()
 {
 	g_color_highlight = "";
@@ -146,6 +190,8 @@ struct option g_options[] = {
 	{ "adduser", required_argument, NULL, 'a' },
 	{ "passphrase", required_argument, NULL, 'p' },
 	{ "privilege", required_argument, NULL, 'v' },
+	{ "deluser", required_argument, NULL, 'd' },
+	{ "setpriv", required_argument, NULL, 1001 },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -162,6 +208,9 @@ int main(int argc, char **argv)
 		std::cout << g_color_heading << "  -a (--adduser) <auth_db>" << g_color_default << " Add new user specified by " << g_color_heading << "-u" << g_color_default;
 			std::cout << " with passphrase specified by " << g_color_heading << "-p" << g_color_default << " and optional privilege level " << g_color_heading << "-v" << g_color_default;
 			std::cout << " (default 0)" << std::endl;
+		std::cout << g_color_heading << "  -d (--deluser) <auth_db>" << g_color_default << " delete user specified by " << g_color_heading << "-u" << std::endl;
+		std::cout << g_color_heading << "     (--setpriv) <auth_db>" << g_color_default << " set privileges for user specified by " << g_color_heading << "-u" << g_color_default;
+			std::cout << " and mandatory privilege level " << g_color_heading << "-v" << g_color_default << std::endl;
 		std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
 		std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
 		std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
@@ -171,6 +220,8 @@ int main(int argc, char **argv)
 		std::cout << g_color_heading << "  autil -u nobody -o mydb" << g_color_default << " login/out user nobody on mydb" << std::endl;
 		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -v 2 -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and privilege level 2 to mydb" << std::endl;
 		std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and default privilege level (0) to mydb" << std::endl;
+		std::cout << g_color_heading << "  autil -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
+		std::cout << g_color_heading << "  autil -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	
@@ -185,7 +236,7 @@ int main(int argc, char **argv)
 	bool l_privilege_specified = false;
 	
 	int opt;
-	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:", g_options, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:", g_options, NULL)) != -1) {
 		switch (opt) {
 		case 1000:
 		{
@@ -210,6 +261,23 @@ int main(int argc, char **argv)
 			l_privilege_specified = true;
 		}
 			break;
+		case 1001:
+		{
+			l_authdbname = std::string(optarg);
+			if (!l_username_specified) {
+				std::cout << g_color_highlight << "setpriv:" << g_color_error << " must specify a user name to change privileges." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);				
+			}
+			if (!l_privilege_specified) {
+				std::cout << g_color_highlight << "setpriv:" << g_color_error << " must specify new privilege level for this user." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);				
+			}
+			std::cout << g_color_highlight << "setpriv:" << g_color_default << " attempting to set privilege level " << g_color_heading << l_privilege << g_color_default;
+			std::cout << " for user " << g_color_heading << l_username << g_color_default;
+			std::cout << " on auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
+			l_auth_svr.cmd_setpriv(l_authdbname, l_username, l_privilege);
+		}
+			break;
 		case 'c':
 		{
 			l_authdbname = std::string(optarg);
@@ -232,6 +300,17 @@ int main(int argc, char **argv)
 			std::cout << " with privilege level " << g_color_heading << l_privilege << g_color_default;
 			std::cout << " on auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
 			l_auth_svr.cmd_adduser(l_authdbname, l_username, l_passphrase, l_privilege);
+		}
+			break;
+		case 'd':
+		{
+			l_authdbname = std::string(optarg);
+			if (!l_username_specified) {
+				std::cout << g_color_highlight << "deluser:" << g_color_error << " must specify a user name to delete." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);				
+			}
+			std::cout << g_color_highlight << "deluser:" << g_color_default << " attempting to delete user " << g_color_heading << l_username << g_color_default << std::endl;
+			l_auth_svr.cmd_deluser(l_authdbname, l_username);
 		}
 			break;
 		case 'l':
