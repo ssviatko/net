@@ -48,6 +48,7 @@ public:
 	
 	// client side
 	std::optional<std::string> challenge_response(const std::string& a_session, const std::string& a_password);
+	std::optional<std::string> challenge_response_with_hash(const std::string& a_session, const std::string& a_passwordhash);
 	
 	// server side
 	// WARNING: Do not use add_user variants over the wire, exposing the PW hash will make system vulnerable to a replay attack

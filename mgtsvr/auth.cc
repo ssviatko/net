@@ -76,6 +76,17 @@ std::optional<std::string> auth::challenge_response(const std::string& a_session
 	return l_ret;
 }
 
+std::optional<std::string> auth::challenge_response_with_hash(const std::string& a_session, const std::string& a_passwordhash)
+{
+	// client side only
+	if (m_role != role::CLIENT)
+		return std::nullopt;
+	
+	std::string l_ret = generate_challenge(a_session, a_passwordhash);
+//	std::cout << "auth::challenge response sess=" << a_session << " pwhash=" << l_pw_hash << " resp=" << l_ret << std::endl;
+	return l_ret;
+}
+
 bool auth::change_pw_plaintext_pw(const std::string& a_username, const std::string& a_old_pw, const std::string& a_new_pw)
 {
 	// this only works in SERVER mode
