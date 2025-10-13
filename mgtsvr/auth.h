@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <thread>
 #include <mutex>
+#include <stdexcept>
 
 #include "data.h"
 #include "doubletime.h"

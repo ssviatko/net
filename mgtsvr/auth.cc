@@ -388,8 +388,14 @@ bool auth::load_authdb(const std::string& a_filename)
 	ss::data l_load;
 	l_load.load_file(a_filename.c_str());
 	std::string l_work = l_load.read_std_str(l_load.size());
-		
-	std::shared_ptr<ss::json::master> l_master = ss::json::parse_json(l_work);
+
+	std::shared_ptr<ss::json::master> l_master;
+	try {	
+		l_master = ss::json::parse_json(l_work);
+	} catch (std::invalid_argument& e) {
+		std::cerr << e.what() << std::endl;
+		return false;
+	}
 	if (l_master->type() == ss::json::element_type::OBJECT) {
 		m_user_records.clear();
 		std::shared_ptr<ss::json::object> l_root_object = l_master->as_object();
