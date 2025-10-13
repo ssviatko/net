@@ -309,9 +309,11 @@ void usage()
 	std::cout << g_color_heading << "  -u (--user) <username>" << g_color_default << " Specify user name" << std::endl;
 	std::cout << g_color_heading << "  -p (--passphrase) <phrase>" << g_color_default << " Specify passphrase" << std::endl;
 	std::cout << g_color_heading << "  -h (--passphrasehash) <hash>" << g_color_default << " Specify passphrase hash" << std::endl;
+	std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  -v (--privilege) <privilege>" << g_color_default << " Specify privilege level" << std::endl;
 	std::cout << g_color_heading << "  -c (--create) <auth_db>" << g_color_default << " Create new auth DB with default users" << std::endl;
 	std::cout << g_color_heading << "  -l (--list) <auth_db>" << g_color_default << " Show user info in auth DB" << std::endl;
+	std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
 	std::cout << g_color_heading << "  -o (--loginout) <auth_db>" << g_color_default << " Log user specified by " << g_color_heading << "-u" << g_color_default << " in and out" << std::endl;
 	std::cout << g_color_heading << "  -a (--adduser) <auth_db>" << g_color_default << " Add new user specified by " << g_color_heading << "-u" << g_color_default;
 		std::cout << " with passphrase specified by " << g_color_heading << "-p" << g_color_default << " and optional privilege level " << g_color_heading << "-v" << g_color_default;
@@ -326,15 +328,13 @@ void usage()
 		std::cout << " and passphrase " << g_color_heading << "-p" << g_color_default << std::endl;
 	std::cout << g_color_heading << "     (--setph) <auth_db>" << g_color_default << " set passphrase hash for user specified by " << g_color_heading << "-u" << g_color_default;
 		std::cout << " and passphrase hash " << g_color_heading << "-h" << g_color_default << std::endl;
-	std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
-	std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
 	std::cout << g_color_heading << "  -s (--session)" << g_color_default << " specify session hash for challenge reponse" << std::endl;
-	std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
 	std::cout << g_color_heading << "     (--cpackgen) <auth_db>" << g_color_default << " generate challenge pack for user specified by " << g_color_heading << "-u" << g_color_default << " on auth_db" << std::endl;
 	std::cout << g_color_heading << "     (--crgen)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
 		std::cout << " and passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
 	std::cout << g_color_heading << "     (--crgenhash)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
 		std::cout << " and passphrase hash specified by " << g_color_heading << "-h" << g_color_default << std::endl;
+	std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
 	std::cout << g_color_heading << "  -? (--help)" << g_color_default << " show this help/usage screen" << std::endl;
 	std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
 	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 characters in length or the program will complain." << std::endl;
