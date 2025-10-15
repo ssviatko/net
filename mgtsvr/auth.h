@@ -57,6 +57,7 @@ public:
 	// admin through some secure means,
 	// This is the entire point of the challenge/response mechanism, so an eavesdropper will not be able to determine the password
 	// or the hash!
+	void set_master_passphrase(const std::string& a_passphrase);
 	bool add_user(const std::string& a_username, const std::string& a_password_hash);
 	bool add_user_plaintext_pw(const std::string& a_username, const std::string& a_password);
 	bool delete_user(const std::string& a_username);
@@ -88,6 +89,7 @@ protected:
 	role m_role;
 	std::map<std::string, user_rec> m_user_records;
 	std::mutex m_user_records_mtx;
+	std::string m_master_passphrase;
 };
 
 } // namespace net

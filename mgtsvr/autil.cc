@@ -298,6 +298,7 @@ struct option g_options[] = {
 	{ "crgenhash", no_argument, NULL, OPT_CRGENHASH },
 	{ "session", required_argument, NULL, 's' },
 	{ "phgen", no_argument, NULL, OPT_PHGEN },
+	{ "master", required_argument, NULL, 'm' },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -311,6 +312,7 @@ void usage()
 	std::cout << g_color_heading << "  -h (--passphrasehash) <hash>" << g_color_default << " Specify passphrase hash" << std::endl;
 	std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  -v (--privilege) <privilege>" << g_color_default << " Specify privilege level" << std::endl;
+	std::cout << g_color_heading << "  -m (--master) <phrase>" << g_color_default << " Specify master passphrase" << std::endl;
 	std::cout << g_color_heading << "  -c (--create) <auth_db>" << g_color_default << " Create new auth DB with default users" << std::endl;
 	std::cout << g_color_heading << "  -l (--list) <auth_db>" << g_color_default << " Show user info in auth DB" << std::endl;
 	std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
@@ -337,6 +339,7 @@ void usage()
 	std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
 	std::cout << g_color_heading << "  -? (--help)" << g_color_default << " show this help/usage screen" << std::endl;
 	std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
+	std::cout << "  every command that references an auth DB must also have a master passphrase specified to seal/unseal the DB." << std::endl;
 	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 characters in length or the program will complain." << std::endl;
 	std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  autil -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
@@ -371,13 +374,20 @@ int main(int argc, char **argv)
 	bool l_session_specified = false;
 	std::string l_passphrasehash;
 	bool l_passphrasehash_specified = false;
+	bool l_master_specified = false;
 	
 	int opt;
-	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:s:h:?", g_options, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:s:h:?m:", g_options, NULL)) != -1) {
 		switch (opt) {
 		case '?':
 		{
 			usage();
+		}
+			break;
+		case 'm':
+		{
+			l_auth_svr.set_master_passphrase(std::string(optarg));
+			l_master_specified = true;
 		}
 			break;
 		case OPT_NOCOLOR:
@@ -437,6 +447,10 @@ int main(int argc, char **argv)
 		case OPT_CPACKGEN:
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "cpackgen:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "cpackgen:" << g_color_error << " must specify a user name to generate challenge pack." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -498,6 +512,10 @@ int main(int argc, char **argv)
 		case OPT_SETPRIV:
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "setpriv:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "setpriv:" << g_color_error << " must specify a user name to change privileges." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -515,6 +533,10 @@ int main(int argc, char **argv)
 		case OPT_SETPP:
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "setpp:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "setpp:" << g_color_error << " must specify a user name to change passphrase." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -531,6 +553,10 @@ int main(int argc, char **argv)
 		case OPT_SETPH:
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "setph:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "setph:" << g_color_error << " must specify a user name to change passphrase hash." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -547,13 +573,21 @@ int main(int argc, char **argv)
 		case 'c':
 		{
 			l_authdbname = std::string(optarg);
-			std::cout << "attempting to create new auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "create:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
+			std::cout << g_color_highlight << "create: " << g_color_default << " attempting to create new auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
 			l_auth_svr.cmd_create(l_authdbname);
 		}
 			break;
 		case 'a':
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "adduser:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "adduser:" << g_color_error << " must specify a user name to add." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -571,6 +605,10 @@ int main(int argc, char **argv)
 		case OPT_ADDUSERHASH:
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "adduserhash:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "adduserhash:" << g_color_error << " must specify a user name to add." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -588,6 +626,10 @@ int main(int argc, char **argv)
 		case 'd':
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "deluser:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			if (!l_username_specified) {
 				std::cout << g_color_highlight << "deluser:" << g_color_error << " must specify a user name to delete." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);				
@@ -604,6 +646,10 @@ int main(int argc, char **argv)
 		case 'l':
 		{
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "list:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			std::cout << g_color_highlight << "list:" << g_color_default << " attempting to list auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
 			l_auth_svr.cmd_list(l_authdbname, l_listph);
 		}
@@ -615,6 +661,10 @@ int main(int argc, char **argv)
 				exit(EXIT_FAILURE);
 			}
 			l_authdbname = std::string(optarg);
+			if (!l_master_specified) {
+				std::cout << g_color_highlight << "loginout:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
 			std::cout << g_color_highlight << "loginout:" << g_color_default << " attempting to log user " << g_color_heading << l_username << g_color_default << " in and out on auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
 			l_auth_svr.cmd_loginout(l_authdbname, l_username);
 		}

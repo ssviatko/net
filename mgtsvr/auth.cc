@@ -14,6 +14,11 @@ auth::~auth()
 	
 }
 
+void auth::set_master_passphrase(const std::string& a_passphrase)
+{
+	m_master_passphrase = a_passphrase;
+}
+
 std::string auth::generate_hash(const std::string& a_password)
 {
 	ss::data l_pw;
@@ -386,9 +391,19 @@ bool auth::load_authdb(const std::string& a_filename)
 	std::lock_guard<std::mutex> l_guard(m_user_records_mtx);
 	
 	ss::data l_load;
-	l_load.load_file(a_filename.c_str());
-	std::string l_work = l_load.read_std_str(l_load.size());
-
+	std::string l_work;
+	try {
+		ss::data l_load_key = ss::data::bf7_key_schedule(m_master_passphrase);
+		ss::data l_load_iv = ss::data::bf7_iv_schedule(m_master_passphrase);
+		l_load.load_file(a_filename.c_str());
+		ss::data l_load_dec = ss::data::decrypt_bf7_cbc_hmac_sha2_256(l_load, l_load_key, l_load_iv);
+		l_work = l_load_dec.read_std_str(l_load_dec.size());
+	} catch (std::exception& e) {
+		// error during loading/decrypting
+		std::cerr << e.what() << std::endl;
+		return false;
+	}
+	
 	std::shared_ptr<ss::json::master> l_master;
 	try {	
 		l_master = ss::json::parse_json(l_work);
@@ -474,7 +489,15 @@ bool auth::save_authdb(const std::string& a_filename)
 //	std::cout << "save_authdb: " << ss::json::make_human_readable(l_work) << std::endl;
 	ss::data l_save;
 	l_save.write_std_str(ss::json::make_human_readable(l_work));
-	l_save.save_file(a_filename.c_str());
+	ss::data l_save_key = ss::data::bf7_key_schedule(m_master_passphrase);
+	ss::data l_save_iv = ss::data::bf7_iv_schedule(m_master_passphrase);
+	try {
+		ss::data l_save_encrypted = ss::data::encrypt_bf7_cbc_hmac_sha2_256(l_save, l_save_key, l_save_iv);
+		l_save_encrypted.save_file(a_filename.c_str());
+	} catch (std::exception& e) {
+		// error while encrypting and saving
+		return false;
+	}
 	return true;
 }
 
