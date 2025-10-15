@@ -341,16 +341,16 @@ void usage()
 	std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
 	std::cout << "  every command that references an auth DB must also have a master passphrase specified to seal/unseal the DB." << std::endl;
 	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 characters in length or the program will complain." << std::endl;
-	std::cout << g_color_highlight << "examples:" << g_color_default << std::endl;
-	std::cout << g_color_heading << "  autil -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
-	std::cout << g_color_heading << "  autil -l mydb" << g_color_default << " list contents of DB named mydb" << std::endl;
-	std::cout << g_color_heading << "  autil --nocolor -l mydb" << g_color_default << " list contents of DB named mydb with no colors (for use with awk and other tools)" << std::endl;
-	std::cout << g_color_heading << "  autil -u nobody -o mydb" << g_color_default << " login/out user nobody on mydb" << std::endl;
-	std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -v 2 -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and privilege level 2 to mydb" << std::endl;
-	std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and default privilege level (0) to mydb" << std::endl;
-	std::cout << g_color_heading << "  autil -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
-	std::cout << g_color_heading << "  autil -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
-	std::cout << g_color_heading << "  autil -u nobody -p \"foo foo\" --setpp mydb" << g_color_default << " set nobody's passphrase to \"foo foo\" on mydb" << std::endl;
+	std::cout << g_color_highlight << "examples: (all examples assume use of master passphrase \"example\" to seal/unseal the DB" << g_color_default << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -l mydb" << g_color_default << " list contents of DB named mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" --nocolor -l mydb" << g_color_default << " list contents of DB named mydb with no colors (for use with awk and other tools)" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -o mydb" << g_color_default << " login/out user nobody on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -p \"foo foo\" -v 2 -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and privilege level 2 to mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -p \"foo foo\" -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and default privilege level (0) to mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -p \"foo foo\" --setpp mydb" << g_color_default << " set nobody's passphrase to \"foo foo\" on mydb" << std::endl;
 	exit(EXIT_FAILURE);
 }
 
