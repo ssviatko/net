@@ -157,7 +157,7 @@ void util_auth::cmd_adduserhash(std::string a_authdb, std::string a_username, st
 	}
 	bool l_added = add_user(a_username, a_passphrasehash);
 	if (!l_added) {
-		std::cout << g_color_highlight << "addusehashr:" << g_color_error << " unable to add user: " << g_color_heading << a_username << g_color_error << " (perhaps it already exists)" << g_color_default << std::endl;
+		std::cout << g_color_highlight << "adduserhash:" << g_color_error << " unable to add user: " << g_color_heading << a_username << g_color_error << " (perhaps it already exists)" << g_color_default << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	bool l_setpriv = set_priv_level(a_username, a_privilege);
