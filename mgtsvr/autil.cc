@@ -73,16 +73,16 @@ void util_auth::cmd_create(std::string& a_authdb)
 		// if we didn't load the auth db (i.e. we're starting from scratch), create some default accounts
 		bool l_add_user_success;
 		l_add_user_success = add_user_plaintext_pw("user", "user");
-		std::cout << std::format("add default user user: {}", l_add_user_success) << std::endl;
+		std::cout << g_color_highlight << "create:" << g_color_default << std::format(" add default user user: {}", l_add_user_success) << std::endl;
 		l_add_user_success = add_user_plaintext_pw("admin", "admin");
 		set_priv_level("admin", -1);
-		std::cout << std::format("add default user admin: {}", l_add_user_success) << std::endl;
+		std::cout << g_color_highlight << "create:" << g_color_default << std::format(" add default user admin: {}", l_add_user_success) << std::endl;
 		l_add_user_success = add_user_plaintext_pw("operator", "operator");
 		set_priv_level("operator", -2);
-		std::cout << std::format("add default user operator: {}", l_add_user_success) << std::endl;
+		std::cout << g_color_highlight << "create:" << g_color_default << std::format(" add default user operator: {}", l_add_user_success) << std::endl;
 		l_add_user_success = add_user_plaintext_pw("chump", "chump");
 		set_priv_level("chump", 1);
-		std::cout << std::format("add default user chump: {}", l_add_user_success) << std::endl;
+		std::cout << g_color_highlight << "create:" << g_color_default << std::format(" add default user chump: {}", l_add_user_success) << std::endl;
 	} else {
 		std::cout << g_color_highlight << "create:" << g_color_error << " auth DB file " << a_authdb << " already exists." << g_color_default << std::endl;
 		exit(EXIT_FAILURE);
@@ -711,7 +711,7 @@ int main(int argc, char **argv)
 				std::cout << g_color_highlight << "create:" << g_color_error << " must specify a master passphrase to seal/unseal auth DB." << g_color_default << std::endl;
 				exit(EXIT_FAILURE);
 			}
-			std::cout << g_color_highlight << "create: " << g_color_default << " attempting to create new auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
+			std::cout << g_color_highlight << "create:" << g_color_default << " attempting to create new auth DB: " << g_color_heading << l_authdbname << g_color_default << "..." << std::endl;
 			l_auth_svr.cmd_create(l_authdbname);
 		}
 			break;
