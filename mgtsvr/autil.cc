@@ -4,6 +4,8 @@
 #include <format>
 
 #include <getopt.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "auth.h"
 #include "log.h"
@@ -11,7 +13,7 @@
 //std::string g_color_highlight = ss::color_gs(ss::color_gs_name("AQUAMARINE"));
 //std::string g_color_heading = ss::color_gs(ss::color_gs_name("DARKGREEN"));
 //std::string g_color_error = ss::color_gs(ss::color_gs_name("PINK"));
-std::string g_color_highlight = ss::COLOR_LIGHTCYAN;
+std::string g_color_highlight = ss::COLOR_LIGHTGREEN;
 std::string g_color_heading = ss::COLOR_GREEN;
 std::string g_color_error = ss::COLOR_LIGHTRED;
 std::string g_color_default = ss::COLOR_DEFAULT;
@@ -29,6 +31,7 @@ public:
 	void cmd_setpriv(std::string a_authdb, std::string a_username, int a_privilege);
 	void cmd_setpp(std::string a_authdb, std::string a_username, std::string a_passphrase);
 	void cmd_setph(std::string a_authdb, std::string a_username, std::string a_passphrasehash);
+	void cmd_changem(std::string a_authdb, std::string a_old_passphrase, std::string a_new_passphrase);
 	std::string pad(const std::string& a_string, std::size_t a_len);
 };
 
@@ -255,6 +258,23 @@ void util_auth::cmd_setph(std::string a_authdb, std::string a_username, std::str
 	}	
 }
 
+void util_auth::cmd_changem(std::string a_authdb, std::string a_old_passphrase, std::string a_new_passphrase)
+{
+	bool l_load = load_authdb(a_authdb);
+	if (!l_load) {
+		std::cout << g_color_highlight << "change master passphrase:" << g_color_error << " unable to open auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	set_master_passphrase(a_new_passphrase);
+	bool l_save = save_authdb(a_authdb);
+	if (!l_save) {
+		std::cout << g_color_highlight << "change master passphrase:" << g_color_error << " unable to save auth DB: " << a_authdb << g_color_default << std::endl;
+		exit(EXIT_FAILURE);
+	} else {
+		std::cout << g_color_highlight << "change master passphrase:" << g_color_default << " success, wrote auth DB: " << g_color_heading << a_authdb << g_color_default << std::endl;
+	}
+}
+
 void kill_color()
 {
 	g_color_highlight = "";
@@ -273,11 +293,14 @@ enum {
 	OPT_CPACKGEN,
 	OPT_CRGEN,
 	OPT_CRGENHASH,
-	OPT_PHGEN
+	OPT_PHGEN,
+	OPT_ASKM,
+	OPT_SHOWM,
+	OPT_CHANGEM
 };
 
 struct option g_options[] = {
-	{ "help", no_argument, NULL, '?' },
+	{ "help", optional_argument, NULL, '?' },
 	{ "list", required_argument, NULL, 'l' },
 	{ "create", required_argument, NULL, 'c' },
 	{ "user", required_argument, NULL, 'u' },
@@ -299,20 +322,31 @@ struct option g_options[] = {
 	{ "session", required_argument, NULL, 's' },
 	{ "phgen", no_argument, NULL, OPT_PHGEN },
 	{ "master", required_argument, NULL, 'm' },
+	{ "askm", no_argument, NULL, OPT_ASKM },
+	{ "showm", no_argument, NULL, OPT_SHOWM },
+	{ "changem", required_argument, NULL, OPT_CHANGEM },
 	{ NULL, 0, NULL, 0 }
 };
 
-void usage()
+void usage_heading()
 {
 	std::cout << g_color_highlight << "autil" << g_color_heading << " - Authorization Utility for managing JSON ss::net::auth databases" << g_color_default << std::endl;
 	std::cout << g_color_heading << "Release number " << g_color_default << RELEASE_NUMBER << g_color_heading << " Build number " << g_color_default << BUILD_NUMBER << g_color_heading << " Built on " << g_color_default << BUILD_DATE << std::endl;
+}
+
+void usage()
+{
+	usage_heading();
 	std::cout << g_color_highlight << "usage:" << g_color_default << " autil " << g_color_heading << "(options)" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  -u (--user) <username>" << g_color_default << " Specify user name" << std::endl;
 	std::cout << g_color_heading << "  -p (--passphrase) <phrase>" << g_color_default << " Specify passphrase" << std::endl;
 	std::cout << g_color_heading << "  -h (--passphrasehash) <hash>" << g_color_default << " Specify passphrase hash" << std::endl;
 	std::cout << g_color_heading << "     (--phgen)" << g_color_default << " generate passphrase hash based on passphrase specified by " << g_color_heading << "-p" << g_color_default << std::endl;
-	std::cout << g_color_heading << "  -v (--privilege) <privilege>" << g_color_default << " Specify privilege level" << std::endl;
+	std::cout << g_color_heading << "  -v (--privilege) <privilege>" << g_color_default << " Specify privilege level (recommended -16 to +15)" << std::endl;
 	std::cout << g_color_heading << "  -m (--master) <phrase>" << g_color_default << " Specify master passphrase" << std::endl;
+	std::cout << g_color_heading << "     (--askm)" << g_color_default << " ask for master passphrase at command line instead" << std::endl;
+	std::cout << g_color_heading << "     (--showm)" << g_color_default << " show master passphrase entered using --askm or -m (debug option)" << std::endl;
+	std::cout << g_color_heading << "     (--changem) <auth_db>" << g_color_default << " change master passphrase on DB (interactive)" << std::endl;
 	std::cout << g_color_heading << "  -c (--create) <auth_db>" << g_color_default << " Create new auth DB with default users" << std::endl;
 	std::cout << g_color_heading << "  -l (--list) <auth_db>" << g_color_default << " Show user info in auth DB" << std::endl;
 	std::cout << g_color_heading << "     (--listph)" << g_color_default << " show passphrase hashes in " << g_color_heading << "-l" << g_color_default << " DB listing" << std::endl;
@@ -337,13 +371,20 @@ void usage()
 	std::cout << g_color_heading << "     (--crgenhash)" << g_color_default << " generate challenge response using session hash " << g_color_heading << "-s" << g_color_default;
 		std::cout << " and passphrase hash specified by " << g_color_heading << "-h" << g_color_default << std::endl;
 	std::cout << g_color_heading << "     (--nocolor)" << g_color_default << " kill colors" << std::endl;
-	std::cout << g_color_heading << "  -? (--help)" << g_color_default << " show this help/usage screen" << std::endl;
-	std::cout << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << std::endl;
-	std::cout << "  every command that references an auth DB must also have a master passphrase specified to seal/unseal the DB." << std::endl;
-	std::cout << "  all hashes (passphrase hashes, session hashes) must be 64 characters in length or the program will complain." << std::endl;
-	std::cout << g_color_highlight << "examples: (all examples assume use of master passphrase \"example\" to seal/unseal the DB" << g_color_default << std::endl;
+	std::cout << g_color_heading << "  -? (--help) <optional screen>" << g_color_default << " show this help/usage screen, or specify optional screen: " << g_color_heading << "examples" << g_color_default << " (show examples detail)" << std::endl;
+	std::cout << g_color_heading << "  options must be specified in order, e.g. -u, -p, -v must preceed any option that expects a username, passphrase, etc" << g_color_default << std::endl;
+	std::cout << g_color_heading << "  every command that references an auth DB must also have a master passphrase specified with either -m or --askm to seal/unseal the DB." << g_color_default << std::endl;
+	std::cout << g_color_heading << "  all hashes (passphrase hashes, session hashes) must be base64 string 64 characters in length or the program will complain." << g_color_default << std::endl;
+	exit(EXIT_FAILURE);
+}
+
+void help_examples()
+{
+	usage_heading();
+	std::cout << g_color_highlight << "examples: (all examples with -m or --askm assume use of master passphrase to seal/unseal the DB)" << g_color_default << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" -c mydb" << g_color_default << " create new DB named mydb" << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" -l mydb" << g_color_default << " list contents of DB named mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -m \"example\" --listph -l mydb" << g_color_default << " list contents of DB named mydb, include passphrase hashes for each account" << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" --nocolor -l mydb" << g_color_default << " list contents of DB named mydb with no colors (for use with awk and other tools)" << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -o mydb" << g_color_default << " login/out user nobody on mydb" << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -p \"foo foo\" -v 2 -a mydb" << g_color_default << " add user nobody with passphrase \"foo foo\" and privilege level 2 to mydb" << std::endl;
@@ -351,7 +392,37 @@ void usage()
 	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -d mydb" << g_color_default << " delete user nobody on mydb" << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -v -2 --setpriv mydb" << g_color_default << " set nobody's privileges to -2 (superuser) on mydb" << std::endl;
 	std::cout << g_color_heading << "  autil -m \"example\" -u nobody -p \"foo foo\" --setpp mydb" << g_color_default << " set nobody's passphrase to \"foo foo\" on mydb" << std::endl;
+	std::cout << g_color_heading << "  autil -p banana --phgen" << g_color_default << " show passphrase hash for passphrase \"banana\"." << std::endl;
+	std::cout << g_color_heading << "  autil --askm -l mydb" << g_color_default << " list contents of DB named mydb, ask for master passphrase interactively instead of using -m" << std::endl;
+	std::cout << g_color_heading << "  autil --askm --showm -l mydb" << g_color_default << " list contents of DB named mydb, ask for master passphrase interactively but show it on screen after entry (debug option)" << std::endl;
+	std::cout << g_color_heading << "  autil --changem mydb" << g_color_default << " change master passphrase for mydb, will ask for old/new passphrases interactively. --showm not applicable" << std::endl;
 	exit(EXIT_FAILURE);
+}
+
+std::string getpw()
+{
+	std::string l_password;
+	termios oldt;
+	tcgetattr(STDIN_FILENO, &oldt);
+	termios newt = oldt;
+	newt.c_lflag &= ~ECHO;
+	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+	char ch;
+	while ((ch = getchar()) != '\n') {
+		if (ch == 127) {
+			// Handle backspace
+			if (!l_password.empty()) {
+				l_password.pop_back();
+			}
+		} else {
+			l_password += ch;
+		}
+	}
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	std::cout << std::endl;
+	return l_password;
 }
 
 int main(int argc, char **argv)
@@ -377,17 +448,80 @@ int main(int argc, char **argv)
 	bool l_master_specified = false;
 	
 	int opt;
-	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:s:h:?m:", g_options, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "u:c:l:o:a:p:v:d:s:h:?::m:", g_options, NULL)) != -1) {
 		switch (opt) {
 		case '?':
 		{
-			usage();
+			if (optarg == NULL && optind < argc && argv[optind][0] != '-')
+			{
+				// correct optarg if user put a space between -? and the option
+				optarg = argv[optind++];
+			} else if (optarg == NULL) {
+				// user did not select an option, just typed -?
+				usage();
+			}
+			// now we can allow a user to type -?option OR -? option (with or without space)
+			std::string l_help_option = std::string(optarg);
+			if (l_help_option == "examples") {
+				help_examples();
+			} else {
+				// unrecognized help option
+				std::cout << g_color_highlight << "help:" << g_color_error << " unrecognized option \"" << l_help_option << "\"." << g_color_default << std::endl;
+				usage();
+			}
 		}
 			break;
 		case 'm':
 		{
 			l_auth_svr.set_master_passphrase(std::string(optarg));
 			l_master_specified = true;
+		}
+			break;
+		case OPT_ASKM:
+		{
+			std::cout << "enter master passhrase: ";
+			std::string l_firstpw = getpw();
+			std::cout << "enter passphrase again: ";
+			std::string l_secondpw = getpw();
+			if (l_firstpw != l_secondpw) {
+				std::cout << g_color_highlight << "ask master passphrase:" << g_color_error << " the two passphrases do not match." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
+			l_auth_svr.set_master_passphrase(l_firstpw);
+			l_master_specified = true;
+		}
+			break;
+		case OPT_SHOWM:
+		{
+			if (l_master_specified) {
+				std::cout << g_color_highlight << "show master passphrase:" << g_color_default << " the passphrase is: " << g_color_heading << l_auth_svr.get_master_passphrase();
+				std::cout << g_color_default << std::endl;
+			}
+		}
+			break;
+		case OPT_CHANGEM:
+		{
+			l_authdbname = std::string(optarg);
+			std::cout << "enter old master passhrase: ";
+			std::string l_firstoldpw = getpw();
+			std::cout << "enter old passphrase again: ";
+			std::string l_secondoldpw = getpw();
+			if (l_firstoldpw != l_secondoldpw) {
+				std::cout << g_color_highlight << "old master passphrase:" << g_color_error << " the two passphrases do not match." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
+			std::cout << "enter new master passhrase: ";
+			std::string l_firstnewpw = getpw();
+			std::cout << "enter new passphrase again: ";
+			std::string l_secondnewpw = getpw();
+			if (l_firstnewpw != l_secondnewpw) {
+				std::cout << g_color_highlight << "new master passphrase:" << g_color_error << " the two passphrases do not match." << g_color_default << std::endl;
+				exit(EXIT_FAILURE);
+			}
+			l_auth_svr.set_master_passphrase(l_firstoldpw);
+			l_auth_svr.cmd_changem(l_authdbname, l_firstoldpw, l_firstnewpw);
+			// no other activity after executing this command
+			exit(EXIT_SUCCESS);
 		}
 			break;
 		case OPT_NOCOLOR:

@@ -58,6 +58,7 @@ public:
 	// This is the entire point of the challenge/response mechanism, so an eavesdropper will not be able to determine the password
 	// or the hash!
 	void set_master_passphrase(const std::string& a_passphrase);
+	std::string get_master_passphrase() { return m_master_passphrase; }
 	bool add_user(const std::string& a_username, const std::string& a_password_hash);
 	bool add_user_plaintext_pw(const std::string& a_username, const std::string& a_password);
 	bool delete_user(const std::string& a_username);
